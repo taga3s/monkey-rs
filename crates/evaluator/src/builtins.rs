@@ -1,4 +1,7 @@
-use object::object::{Builtin, EvaluationError, ObjectTypes};
+use object::{
+    error::EvaluationError,
+    object::{Builtin, ObjectTypes},
+};
 
 pub static BUILTINS: [(&str, Builtin); 6] = [
     ("len", Builtin { fn_: len_builtin }),

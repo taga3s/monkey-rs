@@ -5,18 +5,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use ast::ast::{BlockStatement, Identifier};
 
-use crate::environment::Environment;
-
-#[derive(Debug)]
-pub struct EvaluationError {
-    pub message: String,
-}
-
-impl fmt::Display for EvaluationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
+use crate::{environment::Environment, error::EvaluationError};
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum ObjectType {
@@ -272,25 +261,6 @@ impl Object for ReturnValue {
         self.value.inspect()
     }
 }
-
-// #[derive(PartialEq, Clone)]
-// pub struct Error {
-//     pub message: String,
-// }
-
-// impl Object for Error {
-//     fn ty(&self) -> ObjectType {
-//         ObjectType::ErrorObj
-//     }
-
-//     fn as_type(&self, ty: ObjectType) -> bool {
-//         ty == ObjectType::ErrorObj
-//     }
-
-//     fn inspect(&self) -> String {
-//         format!("ERROR: {}", self.message)
-//     }
-// }
 
 #[derive(Clone)]
 pub struct Function {

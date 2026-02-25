@@ -1,7 +1,8 @@
 use lexer::lexer::Lexer;
 use object::{
     environment::Environment,
-    object::{Boolean, EvaluationError, Integer, Null, ObjectTypes, StringLiteral},
+    error::EvaluationError,
+    object::{Boolean, Integer, Null, ObjectTypes, StringLiteral},
 };
 use parser::parser::Parser;
 use utils::test::TestLiteral;

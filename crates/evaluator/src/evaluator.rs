@@ -5,9 +5,10 @@ use ast::ast::{
 };
 use object::{
     environment::Environment,
+    error::EvaluationError,
     object::{
-        Array, Boolean, EvaluationError, Function, Hash, HashPair, Integer, Null, ObjectType,
-        ObjectTypes, ReturnValue, StringLiteral,
+        Array, Boolean, Function, Hash, HashPair, Integer, Null, ObjectType, ObjectTypes,
+        ReturnValue, StringLiteral,
     },
 };
 
