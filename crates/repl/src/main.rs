@@ -1,4 +1,3 @@
-use core::panic;
 use std::io::{self, Write};
 
 use ::lexer::lexer::Lexer;
@@ -65,8 +64,8 @@ fn print_parse_errors(errors: &[String]) {
 
 fn main() {
     println!("Welcome to monkey-rs REPL! Feel free to type in commands.\nType /quit to exit.");
-
     if let Err(e) = start() {
-        panic!("Error: {}", e);
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
     }
 }

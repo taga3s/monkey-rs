@@ -13,3 +13,9 @@ impl fmt::Display for EvaluationError {
         write!(f, "{}", self.message)
     }
 }
+
+pub fn new_evaluation_error(message: &str) -> EvaluationError {
+    EvaluationError {
+        message: message.to_string(),
+    }
+}

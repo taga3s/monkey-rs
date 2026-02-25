@@ -5,7 +5,7 @@ use ast::ast::{
 };
 use object::{
     environment::Environment,
-    error::EvaluationError,
+    error::{EvaluationError, new_evaluation_error},
     object::{
         Array, Boolean, Function, Hash, HashPair, Integer, Null, ObjectType, ObjectTypes,
         ReturnValue, StringLiteral,
@@ -131,18 +131,8 @@ fn eval_block_statement(
     Ok(result)
 }
 
-fn new_evaluation_error(message: &str) -> EvaluationError {
-    EvaluationError {
-        message: message.to_string(),
-    }
-}
-
 fn native_bool_to_boolean_object(input: bool) -> Result<ObjectTypes, EvaluationError> {
-    if input {
-        Ok(TRUE)
-    } else {
-        Ok(FALSE)
-    }
+    if input { Ok(TRUE) } else { Ok(FALSE) }
 }
 
 fn eval_prefix_expression(
