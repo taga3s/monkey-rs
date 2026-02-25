@@ -18,10 +18,15 @@ pub fn run(input: &str) -> Option<String> {
     }
 
     let evaluated = evaluator::eval(&program, env);
-    if ObjectTypes::Null(object::object::Null {}).inspect() == evaluated.inspect() {
-        return None;
+    match evaluated {
+        Ok(result) => {
+            if ObjectTypes::Null(object::object::Null {}).inspect() == result.inspect() {
+                return None;
+            }
+            Some(result.inspect())
+        }
+        Err(_) => None,
     }
-    Some(evaluated.inspect())
 }
 
 fn print_parse_errors(errors: &[String]) {

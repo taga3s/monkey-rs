@@ -45,7 +45,14 @@ fn start() -> io::Result<()> {
         }
 
         let evaluated = evaluator::eval(&program, env.clone());
-        println!("{}", evaluated.inspect());
+        match evaluated {
+            Ok(result) => {
+                println!("{}", result.inspect());
+            }
+            Err(err) => {
+                println!("{}", err);
+            }
+        }
     }
 
     Ok(())
