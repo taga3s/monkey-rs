@@ -302,11 +302,11 @@ fn test_builtin_functions() {
         (r#"len("hello world")"#, TestLiteral::Int(11)),
         (
             "len(1)",
-            TestLiteral::Str("argument to `len` not supported, got INTEGER"),
+            TestLiteral::Str("Argument to `len` not supported, got INTEGER"),
         ),
         (
             r#"len("one", "two")"#,
-            TestLiteral::Str("wrong number of arguments. got=2, want=1"),
+            TestLiteral::Str("Wrong number of arguments. got=2, want=1"),
         ),
         ("len([1, 2, 3])", TestLiteral::Int(3)),
         ("len([])", TestLiteral::Int(0)),
