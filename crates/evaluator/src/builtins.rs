@@ -15,7 +15,7 @@ pub static BUILTINS: [(&str, Builtin); 6] = [
 fn len_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
     if args.len() != 1 {
         return Err(EvaluationError {
-            message: format!("Wrong number of arguments. got={}, want=1", args.len()),
+            message: format!("wrong number of arguments. got={}, want=1", args.len()),
         });
     }
 
@@ -27,7 +27,7 @@ fn len_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
             value: array.elements.len() as i64,
         })),
         _ => Err(EvaluationError {
-            message: format!("Argument to `len` not supported, got {}", args[0].ty()),
+            message: format!("argument to `len` not supported, got {}", args[0].ty()),
         }),
     }
 }
@@ -35,7 +35,7 @@ fn len_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
 fn first_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
     if args.len() != 1 {
         return Err(EvaluationError {
-            message: format!("Wrong number of arguments. got={}, want=1", args.len()),
+            message: format!("wrong number of arguments. got={}, want=1", args.len()),
         });
     }
 
@@ -56,7 +56,7 @@ fn first_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
 fn last_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
     if args.len() != 1 {
         return Err(EvaluationError {
-            message: format!("Wrong number of arguments. got={}, want=1", args.len()),
+            message: format!("wrong number of arguments. got={}, want=1", args.len()),
         });
     }
 
@@ -69,7 +69,7 @@ fn last_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
             }
         }
         _ => Err(EvaluationError {
-            message: format!("Argument to `last` must be ARRAY, got {}", args[0].ty()),
+            message: format!("argument to `last` must be ARRAY, got {}", args[0].ty()),
         }),
     }
 }
@@ -77,7 +77,7 @@ fn last_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
 fn rest_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
     if args.len() != 1 {
         return Err(EvaluationError {
-            message: format!("Wrong number of arguments. got={}, want=1", args.len()),
+            message: format!("wrong number of arguments. got={}, want=1", args.len()),
         });
     }
 
@@ -93,7 +93,7 @@ fn rest_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
             }
         }
         _ => Err(EvaluationError {
-            message: format!("Argument to `rest` must be ARRAY, got {}", args[0].ty()),
+            message: format!("argument to `rest` must be ARRAY, got {}", args[0].ty()),
         }),
     }
 }
@@ -101,7 +101,7 @@ fn rest_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
 fn push_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
     if args.len() != 2 {
         return Err(EvaluationError {
-            message: format!("Wrong number of arguments. got={}, want=2", args.len()),
+            message: format!("wrong number of arguments. got={}, want=2", args.len()),
         });
     }
 
@@ -114,7 +114,7 @@ fn push_builtin(args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluationError> {
             }))
         }
         _ => Err(EvaluationError {
-            message: format!("Argument to `push` must be ARRAY, got {}", args[0].ty()),
+            message: format!("argument to `push` must be ARRAY, got {}", args[0].ty()),
         }),
     }
 }

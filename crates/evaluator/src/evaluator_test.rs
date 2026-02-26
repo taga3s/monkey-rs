@@ -214,7 +214,7 @@ fn test_error_handling() {
         ),
         (
             "fn(x) { x }();",
-            "Wrong number of arguments: expected 1, got 0",
+            "wrong number of arguments: expected 1, got 0",
         ),
         (
             "fn(x, y) { x + y }(1);",
@@ -222,11 +222,11 @@ fn test_error_handling() {
         ),
         (
             "fn(x) { x }(1, 2);",
-            "Wrong number of arguments: expected 1, got 2",
+            "wrong number of arguments: expected 1, got 2",
         ),
         (
             "fn(a, b, c) { a + b + c }(1, 2);",
-            "Wrong number of arguments: expected 3, got 2",
+            "wrong number of arguments: expected 3, got 2",
         ),
     ];
 
@@ -318,11 +318,11 @@ fn test_builtin_functions() {
         (r#"len("hello world")"#, TestLiteral::Int(11)),
         (
             "len(1)",
-            TestLiteral::Str("Argument to `len` not supported, got INTEGER"),
+            TestLiteral::Str("argument to `len` not supported, got INTEGER"),
         ),
         (
             r#"len("one", "two")"#,
-            TestLiteral::Str("Wrong number of arguments. got=2, want=1"),
+            TestLiteral::Str("wrong number of arguments. got=2, want=1"),
         ),
         ("len([1, 2, 3])", TestLiteral::Int(3)),
         ("len([])", TestLiteral::Int(0)),

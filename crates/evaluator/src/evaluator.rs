@@ -32,18 +32,43 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
                 ObjectTypes::Array(Array { elements })
             }
             Expression::IndexExpression(ie) => {
-                let left = eval(ie.left.as_ref().unwrap(), env.clone())?;
-                let index = eval(ie.index.as_ref().unwrap(), env.clone())?;
+                let left = eval(
+                    ie.left.as_ref().ok_or(new_evaluation_error(
+                        "[internal:evaluator] missing left operand in index expression",
+                    ))?,
+                    env.clone(),
+                )?;
+                let index = eval(
+                    ie.index.as_ref().ok_or(new_evaluation_error(
+                        "[internal:evaluator] missing index in index expression",
+                    ))?,
+                    env.clone(),
+                )?;
                 return eval_index_expression(&left, &index);
             }
             Expression::Identifier(ident) => eval_identifier(ident, env.clone())?,
             Expression::Infix(infix) => {
-                let left = eval(infix.left.as_ref().unwrap(), env.clone())?;
-                let right = eval(infix.right.as_ref().unwrap(), env.clone())?;
+                let left = eval(
+                    infix.left.as_ref().ok_or(new_evaluation_error(
+                        "[internal:evaluator] missing left operand in infix expression",
+                    ))?,
+                    env.clone(),
+                )?;
+                let right = eval(
+                    infix.right.as_ref().ok_or(new_evaluation_error(
+                        "[internal:evaluator] missing right operand in infix expression",
+                    ))?,
+                    env.clone(),
+                )?;
                 return eval_infix_expression(&infix.operator, &left, &right);
             }
             Expression::Prefix(prefix) => {
-                let right = eval(prefix.right.as_ref().unwrap(), env)?;
+                let right = eval(
+                    prefix.right.as_ref().ok_or(new_evaluation_error(
+                        "[internal:evaluator] missing operand in prefix expression",
+                    ))?,
+                    env,
+                )?;
                 return eval_prefix_expression(&prefix.operator, &right);
             }
             Expression::IfExpression(ifexp) => eval_if_expression(ifexp, env)?,
@@ -61,7 +86,14 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
                         }
                     }
                 }
-                let body = match fl.body.as_ref().unwrap().as_ref() {
+                let body = match fl
+                    .body
+                    .as_ref()
+                    .ok_or(new_evaluation_error(
+                        "[internal:evaluator] missing function body",
+                    ))?
+                    .as_ref()
+                {
                     Node::Statement(Statement::BlockStatement(bs)) => bs,
                     _ => {
                         return Err(new_evaluation_error(
@@ -83,14 +115,37 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
             Expression::HashLiteral(hl) => eval_hash_literal(hl, env)?,
         },
         Node::Statement(stmt) => match stmt {
-            Statement::ExpressionStatement(es) => eval(es.expression.as_ref().unwrap(), env)?,
+            Statement::ExpressionStatement(es) => eval(
+                es.expression.as_ref().ok_or(new_evaluation_error(
+                    "[internal:evaluator] missing expression in expression statement",
+                ))?,
+                env,
+            )?,
             Statement::Let(ls) => {
-                let val = eval(ls.value.as_ref().unwrap(), env.clone())?;
-                env.borrow_mut().set(&ls.name.as_ref().unwrap().value, val);
+                let val = eval(
+                    ls.value.as_ref().ok_or(new_evaluation_error(
+                        "[internal:evaluator] missing value in let statement",
+                    ))?,
+                    env.clone(),
+                )?;
+                env.borrow_mut().set(
+                    &ls.name
+                        .as_ref()
+                        .ok_or(new_evaluation_error(
+                            "[internal:evaluator] missing identifier in let statement",
+                        ))?
+                        .value,
+                    val,
+                );
                 NULL
             }
             Statement::Return(rs) => {
-                let val = eval(rs.return_value.as_ref().unwrap(), env)?;
+                let val = eval(
+                    rs.return_value.as_ref().ok_or(new_evaluation_error(
+                        "[internal:evaluator] missing return value in return statement",
+                    ))?,
+                    env,
+                )?;
                 return Ok(ObjectTypes::ReturnValue(ReturnValue {
                     value: Box::new(val),
                 }));
@@ -325,9 +380,19 @@ fn eval_if_expression(
     ie: &IfExpression,
     env: Rc<RefCell<Environment>>,
 ) -> Result<ObjectTypes, EvaluationError> {
-    let condition = eval(ie.condition.as_ref().unwrap(), env.clone())?;
+    let condition = eval(
+        ie.condition.as_ref().ok_or(new_evaluation_error(
+            "[internal:evaluator] missing condition in if expression",
+        ))?,
+        env.clone(),
+    )?;
     if is_truthy(&condition) {
-        return eval(ie.consequence.as_ref().unwrap(), env.clone());
+        return eval(
+            ie.consequence.as_ref().ok_or(new_evaluation_error(
+                "[internal:evaluator] missing consequence in if expression",
+            ))?,
+            env.clone(),
+        );
     }
     if let Some(alt) = &ie.alternative {
         return eval(alt, env.clone());
@@ -378,7 +443,7 @@ fn extend_function_env(
     // Check if the number of arguments matches the number of parameters
     if func.parameters.len() != args.len() {
         return Err(new_evaluation_error(&format!(
-            "Wrong number of arguments: expected {}, got {}",
+            "wrong number of arguments: expected {}, got {}",
             func.parameters.len(),
             args.len()
         )));
