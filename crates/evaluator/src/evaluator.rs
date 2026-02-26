@@ -353,7 +353,7 @@ fn apply_function(
     args: &[ObjectTypes],
 ) -> Result<ObjectTypes, EvaluationError> {
     if let ObjectTypes::Function(function) = func {
-        let extended_env = extend_function_env(function, args);
+        let extended_env = extend_function_env(function, args)?;
         let evaluated = eval(
             &Node::Statement(Statement::BlockStatement(function.body.clone())),
             extended_env,
@@ -371,14 +371,27 @@ fn apply_function(
     )))
 }
 
-fn extend_function_env(func: &Function, args: &[ObjectTypes]) -> Rc<RefCell<Environment>> {
+fn extend_function_env(
+    func: &Function,
+    args: &[ObjectTypes],
+) -> Result<Rc<RefCell<Environment>>, EvaluationError> {
+    // Check if the number of arguments matches the number of parameters
+    if func.parameters.len() != args.len() {
+        return Err(new_evaluation_error(&format!(
+            "Wrong number of arguments: expected {}, got {}",
+            func.parameters.len(),
+            args.len()
+        )));
+    }
+
     let env = Environment::new_enclosed(func.env.clone());
 
+    // Parameter count matches argument count (checked above)
     for (param_idx, param) in func.parameters.iter().enumerate() {
         env.borrow_mut().set(&param.value, args[param_idx].clone());
     }
 
-    env
+    Ok(env)
 }
 
 fn unwrap_return_value(obj: ObjectTypes) -> ObjectTypes {
@@ -419,12 +432,15 @@ fn eval_array_expression(
         ObjectTypes::Integer(integer) => integer.value,
         _ => return Err(new_evaluation_error("index is not an integer")),
     };
-    let max = array.elements.len() as i64 - 1;
 
-    if idx < 0 || idx > max {
+    let array_len = array.elements.len() as i64;
+
+    // Return NULL for out-of-bounds access
+    if idx < 0 || idx >= array_len {
         return Ok(NULL);
     }
 
+    // idx is guaranteed to be within bounds
     Ok(array.elements[idx as usize].clone())
 }
 

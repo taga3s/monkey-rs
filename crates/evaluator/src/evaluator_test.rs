@@ -212,6 +212,22 @@ fn test_error_handling() {
             r#"{"name": "Monkey"}[fn(x) { x }];"#,
             "unusable as hash key: FUNCTION",
         ),
+        (
+            "fn(x) { x }();",
+            "Wrong number of arguments: expected 1, got 0",
+        ),
+        (
+            "fn(x, y) { x + y }(1);",
+            "wrong number of arguments: expected 2, got 1",
+        ),
+        (
+            "fn(x) { x }(1, 2);",
+            "Wrong number of arguments: expected 1, got 2",
+        ),
+        (
+            "fn(a, b, c) { a + b + c }(1, 2);",
+            "Wrong number of arguments: expected 3, got 2",
+        ),
     ];
 
     for test in tests {
