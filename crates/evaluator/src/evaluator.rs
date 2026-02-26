@@ -18,7 +18,7 @@ const TRUE: ObjectTypes = ObjectTypes::Boolean(Boolean { value: true });
 const FALSE: ObjectTypes = ObjectTypes::Boolean(Boolean { value: false });
 
 pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> ObjectTypes {
-    let result = match node {
+    match node {
         Node::Program(program) => eval_program(program, env),
         Node::Expression(expr) => match expr {
             Expression::IntegerLiteral(il) => ObjectTypes::Integer(Integer { value: il.value }),
@@ -42,7 +42,7 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> ObjectTypes {
                 if is_error(&index) {
                     return index;
                 }
-                return eval_index_expression(&left, &index);
+                eval_index_expression(&left, &index)
             }
             Expression::Identifier(ident) => eval_identifier(ident, env.clone()),
             Expression::Infix(infix) => {
@@ -54,14 +54,14 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> ObjectTypes {
                 if is_error(&right) {
                     return right;
                 }
-                return eval_infix_expression(&infix.operator, &left, &right);
+                eval_infix_expression(&infix.operator, &left, &right)
             }
             Expression::Prefix(prefix) => {
                 let right = eval(prefix.right.as_ref().unwrap(), env);
                 if is_error(&right) {
                     return right;
                 }
-                return eval_prefix_expression(&prefix.operator, &right);
+                eval_prefix_expression(&prefix.operator, &right)
             }
             Expression::IfExpression(ifexp) => eval_if_expression(ifexp, env),
             Expression::FunctionLiteral(fl) => {
@@ -82,11 +82,11 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> ObjectTypes {
                         return new_error("function body is not a block statement");
                     }
                 };
-                return ObjectTypes::Function(Function {
+                ObjectTypes::Function(Function {
                     parameters,
                     body: body.clone(),
                     env,
-                });
+                })
             }
             Expression::CallExpression(ce) => {
                 let func = eval(ce.function.as_ref(), env.clone());
@@ -97,7 +97,7 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> ObjectTypes {
                 if args.len() == 1 && is_error(&args[0]) {
                     return args[0].clone();
                 }
-                return apply_function(&func, &args);
+                apply_function(&func, &args)
             }
             Expression::HashLiteral(hl) => eval_hash_literal(hl, env),
         },
@@ -116,14 +116,13 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> ObjectTypes {
                 if is_error(&val) {
                     return val;
                 }
-                return ObjectTypes::ReturnValue(ReturnValue {
+                ObjectTypes::ReturnValue(ReturnValue {
                     value: Box::new(val),
-                });
+                })
             }
             Statement::BlockStatement(bs) => eval_block_statement(bs, env),
         },
-    };
-    result
+    }
 }
 
 fn eval_program(program: &Program, env: Rc<RefCell<Environment>>) -> ObjectTypes {
@@ -230,8 +229,9 @@ fn eval_infix_expression(operator: &str, left: &ObjectTypes, right: &ObjectTypes
             right.ty()
         ));
     }
+    //FIXME: comparison logic may be invalid
     if operator == "==" {
-        return native_bool_to_boolean_object(left == right);
+        return native_bool_to_boolean_object(left.inspect() == right.inspect());
     }
     if operator == "!=" {
         return native_bool_to_boolean_object(left.inspect() != right.inspect());
@@ -380,10 +380,10 @@ fn extend_function_env(func: &Function, args: &[ObjectTypes]) -> Rc<RefCell<Envi
 }
 
 fn unwrap_return_value(obj: ObjectTypes) -> ObjectTypes {
-    if obj.as_type(ObjectType::ReturnValueObj) {
-        if let ObjectTypes::ReturnValue(rv) = obj {
-            return *rv.value;
-        }
+    if obj.as_type(ObjectType::ReturnValueObj)
+        && let ObjectTypes::ReturnValue(rv) = obj
+    {
+        return *rv.value;
     }
     obj
 }
