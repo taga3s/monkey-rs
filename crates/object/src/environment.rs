@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::object::ObjectTypes;
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone)]
 pub struct Environment {
     store: HashMap<String, ObjectTypes>,
     outer: Option<Rc<RefCell<Environment>>>,
@@ -24,10 +24,10 @@ impl Environment {
 
     pub fn get(&self, name: &str) -> Option<ObjectTypes> {
         let obj = self.store.get(name).cloned();
-        if obj.is_none() {
-            if let Some(outer) = self.outer.as_ref() {
-                return outer.borrow().get(name);
-            }
+        if obj.is_none()
+            && let Some(outer) = self.outer.as_ref()
+        {
+            return outer.borrow().get(name);
         }
         obj
     }

@@ -1,4 +1,4 @@
-use ::token::token::{lookup_ident, Token, TokenType};
+use ::token::token::{Token, TokenType, lookup_ident};
 
 pub struct Lexer {
     input_chars: Vec<char>,

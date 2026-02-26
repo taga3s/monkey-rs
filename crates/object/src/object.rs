@@ -39,7 +39,7 @@ impl fmt::Display for ObjectType {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone)]
 pub enum ObjectTypes {
     Integer(Integer),
     StringLiteral(StringLiteral),
@@ -210,7 +210,7 @@ impl Boolean {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone)]
 pub struct Array {
     pub elements: Vec<ObjectTypes>,
 }
@@ -247,7 +247,7 @@ impl Object for Null {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone)]
 pub struct ReturnValue {
     pub value: Box<ObjectTypes>,
 }
@@ -285,7 +285,7 @@ impl Object for Error {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone)]
 pub struct Function {
     pub parameters: Vec<Identifier>,
     pub body: BlockStatement,
@@ -309,7 +309,7 @@ impl Object for Function {
 
 pub type BuiltinFunction = fn(&[ObjectTypes]) -> ObjectTypes;
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone)]
 pub struct Builtin {
     pub fn_: BuiltinFunction,
 }
@@ -328,13 +328,13 @@ impl Object for Builtin {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone)]
 pub struct HashPair {
     pub key: ObjectTypes,
     pub value: ObjectTypes,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone)]
 pub struct Hash {
     pub pairs: HashMap<HashKey, HashPair>,
 }

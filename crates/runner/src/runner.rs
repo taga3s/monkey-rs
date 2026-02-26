@@ -18,7 +18,7 @@ pub fn run(input: &str) -> Option<String> {
     }
 
     let evaluated = evaluator::eval(&program, env);
-    if ObjectTypes::Null(object::object::Null {}) == evaluated {
+    if ObjectTypes::Null(object::object::Null {}).inspect() == evaluated.inspect() {
         return None;
     }
     Some(evaluated.inspect())

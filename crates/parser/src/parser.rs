@@ -379,10 +379,7 @@ impl Parser {
             return None;
         }
 
-        literal.parameters = match self.parse_function_parameters() {
-            Some(p) => p,
-            None => return None,
-        };
+        literal.parameters = self.parse_function_parameters()?;
 
         if !self.expect_peek(&TokenType::LBRACE) {
             return None;
@@ -504,21 +501,14 @@ impl Parser {
 
         while !self.peek_token_is(&TokenType::RBRACE) {
             self.next_token();
-            let key = match self.parse_expression(Precedence::LOWEST) {
-                Some(n) => n,
-                None => return None,
-            };
-
+            let key = self.parse_expression(Precedence::LOWEST)?;
             if !self.expect_peek(&TokenType::COLON) {
                 return None;
             }
 
             self.next_token();
 
-            let value = match self.parse_expression(Precedence::LOWEST) {
-                Some(v) => v,
-                None => return None,
-            };
+            let value = self.parse_expression(Precedence::LOWEST)?;
 
             hash.pairs.insert(key, value);
 
