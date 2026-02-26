@@ -1,6 +1,7 @@
 use lexer::lexer::Lexer;
 use object::{
     environment::Environment,
+    error::EvaluationError,
     object::{Boolean, Integer, Null, ObjectTypes, StringLiteral},
 };
 use parser::parser::Parser;
@@ -9,7 +10,7 @@ use utils::test::TestLiteral;
 use crate::evaluator::eval;
 
 // -- Test Helpers -- //
-fn test_eval(input: &str) -> ObjectTypes {
+fn test_eval(input: &str) -> Result<ObjectTypes, EvaluationError> {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
@@ -18,19 +19,21 @@ fn test_eval(input: &str) -> ObjectTypes {
     eval(&program, env)
 }
 
-fn test_integer_object(obj: ObjectTypes, expected: i64) {
+fn test_integer_object(obj: Result<ObjectTypes, EvaluationError>, expected: i64) {
     let value = match obj {
-        ObjectTypes::Integer(integer) => integer.value,
-        _ => panic!("object is not Integer. got={}", obj.inspect()),
+        Ok(ObjectTypes::Integer(integer)) => integer.value,
+        Err(err) => panic!("object is not Integer. got={}", err),
+        _ => return,
     };
 
     assert_eq!(value, expected);
 }
 
-fn test_boolean_object(obj: ObjectTypes, expected: bool) {
+fn test_boolean_object(obj: Result<ObjectTypes, EvaluationError>, expected: bool) {
     let value = match obj {
-        ObjectTypes::Boolean(boolean) => boolean.value,
-        _ => panic!("object is not Boolean. got={}", obj.inspect()),
+        Ok(ObjectTypes::Boolean(boolean)) => boolean.value,
+        Err(err) => panic!("object is not Boolean. got={}", err),
+        _ => panic!("object is not Boolean"),
     };
 
     assert_eq!(value, expected);
@@ -69,13 +72,11 @@ fn test_string_literal() {
 
     let evaluated = test_eval(input);
     match evaluated {
-        ObjectTypes::StringLiteral(string) => {
+        Ok(ObjectTypes::StringLiteral(string)) => {
             assert_eq!(string.value, "Hello, World!");
         }
-        _ => panic!(
-            "evaluated is not StringLiteral. got={}",
-            evaluated.inspect()
-        ),
+        Err(err) => panic!("evaluated is not StringLiteral. got={}", err),
+        _ => {}
     }
 }
 
@@ -85,13 +86,11 @@ fn test_string_concatenation() {
 
     let evaluated = test_eval(input);
     match evaluated {
-        ObjectTypes::StringLiteral(string) => {
+        Ok(ObjectTypes::StringLiteral(string)) => {
             assert_eq!(string.value, "Hello, World!");
         }
-        _ => panic!(
-            "evaluated is not StringLiteral. got={}",
-            evaluated.inspect()
-        ),
+        Err(err) => panic!("evaluated is not StringLiteral. got={}", err),
+        _ => {}
     }
 }
 
@@ -167,10 +166,11 @@ fn test_if_else_expressions() {
     }
 }
 
-fn test_null_object(obj: ObjectTypes) -> bool {
+fn test_null_object(obj: Result<ObjectTypes, EvaluationError>) -> bool {
     match obj {
-        ObjectTypes::Null(Null {}) => true,
-        _ => panic!("object is not Null. got={}", obj.inspect()),
+        Ok(ObjectTypes::Null(Null {})) => true,
+        Err(err) => panic!("object is not Null. got={}", err),
+        _ => panic!("object is not Null"),
     }
 }
 
@@ -212,17 +212,33 @@ fn test_error_handling() {
             r#"{"name": "Monkey"}[fn(x) { x }];"#,
             "unusable as hash key: FUNCTION",
         ),
+        (
+            "fn(x) { x }();",
+            "wrong number of arguments: expected 1, got 0",
+        ),
+        (
+            "fn(x, y) { x + y }(1);",
+            "wrong number of arguments: expected 2, got 1",
+        ),
+        (
+            "fn(x) { x }(1, 2);",
+            "wrong number of arguments: expected 1, got 2",
+        ),
+        (
+            "fn(a, b, c) { a + b + c }(1, 2);",
+            "wrong number of arguments: expected 3, got 2",
+        ),
     ];
 
     for test in tests {
         let evaluated = test_eval(test.0);
 
         match evaluated {
-            ObjectTypes::Error(error) => {
+            Err(error) => {
                 assert_eq!(error.message, test.1);
             }
-            _ => {
-                eprintln!("object is not Error. got={}", evaluated.inspect());
+            Ok(obj) => {
+                panic!("expected error but got object: {}", obj.inspect());
             }
         }
     }
@@ -249,13 +265,16 @@ fn test_function_object() {
 
     let evaluated = test_eval(input);
     match evaluated {
-        ObjectTypes::Function(function) => {
+        Ok(ObjectTypes::Function(function)) => {
             assert_eq!(function.parameters.len(), 1);
             assert_eq!(function.parameters[0].to_string(), "x");
             assert_eq!(function.body.to_string(), "(x + 2)");
         }
+        Err(err) => {
+            panic!("object is not Function. got={}", err);
+        }
         _ => {
-            panic!("object is not Function. got={}", evaluated.inspect());
+            panic!("object is not Function");
         }
     }
 }
@@ -331,22 +350,22 @@ fn test_builtin_functions() {
                 test_integer_object(evaluated, expected);
             }
             TestLiteral::Str(expected) => match evaluated {
-                ObjectTypes::Error(error) => {
+                Err(error) => {
                     assert_eq!(error.message, expected);
                 }
-                _ => {
-                    panic!("object is not Error. got={}", evaluated.inspect());
+                Ok(obj) => {
+                    panic!("expected error but got object: {}", obj.inspect());
                 }
             },
             TestLiteral::Array(expected) => match evaluated {
-                ObjectTypes::Array(array) => {
+                Ok(ObjectTypes::Array(array)) => {
                     for (i, elem) in expected.iter().enumerate() {
                         match elem {
                             TestLiteral::Int(v) => {
-                                test_integer_object(array.elements[i].clone(), *v);
+                                test_integer_object(Ok(array.elements[i].clone()), *v);
                             }
                             TestLiteral::Bool(v) => {
-                                test_boolean_object(array.elements[i].clone(), *v);
+                                test_boolean_object(Ok(array.elements[i].clone()), *v);
                             }
                             TestLiteral::Str(v) => match array.elements[i].clone() {
                                 ObjectTypes::StringLiteral(s) => {
@@ -363,8 +382,11 @@ fn test_builtin_functions() {
                         }
                     }
                 }
+                Err(err) => {
+                    panic!("object is not Array. got={}", err);
+                }
                 _ => {
-                    panic!("object is not Array. got={}", evaluated.inspect());
+                    panic!("object is not Array");
                 }
             },
             _ => panic!("test case error"),
@@ -378,14 +400,17 @@ fn test_array_literals() {
 
     let evaluated = test_eval(input);
     match evaluated {
-        ObjectTypes::Array(array) => {
+        Ok(ObjectTypes::Array(array)) => {
             assert_eq!(array.elements.len(), 3);
-            test_integer_object(array.elements[0].clone(), 1);
-            test_integer_object(array.elements[1].clone(), 4);
-            test_integer_object(array.elements[2].clone(), 6);
+            test_integer_object(Ok(array.elements[0].clone()), 1);
+            test_integer_object(Ok(array.elements[1].clone()), 4);
+            test_integer_object(Ok(array.elements[2].clone()), 6);
+        }
+        Err(err) => {
+            panic!("object is not Array. got={}", err);
         }
         _ => {
-            panic!("object is not Array. got={}", evaluated.inspect());
+            panic!("object is not Array");
         }
     }
 }
@@ -440,7 +465,7 @@ fn test_hash_literals() {
 
     let evaluated = test_eval(input);
     match evaluated {
-        ObjectTypes::Hash(hash) => {
+        Ok(ObjectTypes::Hash(hash)) => {
             let expected = vec![
                 (
                     ObjectTypes::StringLiteral(StringLiteral {
@@ -475,11 +500,14 @@ fn test_hash_literals() {
                     _ => panic!("unusable as hash key: {}", expected_key.inspect()),
                 };
                 let pair = hash.pairs.get(&hash_key).unwrap();
-                test_integer_object(pair.value.clone(), expected_value);
+                test_integer_object(Ok(pair.value.clone()), expected_value);
             }
         }
+        Err(err) => {
+            panic!("Eval didn't return Hash. got={}", err);
+        }
         _ => {
-            panic!("Eval didn't return Hash. got={}", evaluated.inspect());
+            panic!("Eval didn't return Hash");
         }
     }
 }

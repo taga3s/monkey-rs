@@ -2,7 +2,7 @@ use wasm_bindgen::prelude::*;
 
 use evaluator::evaluator;
 use lexer::lexer::Lexer;
-use object::{environment::Environment, object::ObjectTypes};
+use object::environment::Environment;
 use parser::parser::Parser;
 
 #[wasm_bindgen]
@@ -17,11 +17,10 @@ pub fn run(input: &str) -> Option<String> {
         return None;
     }
 
-    let evaluated = evaluator::eval(&program, env);
-    if ObjectTypes::Null(object::object::Null {}).inspect() == evaluated.inspect() {
-        return None;
+    match evaluator::eval(&program, env) {
+        Ok(result) => Some(result.inspect()),
+        Err(err) => Some(format!("Error: {}", err)),
     }
-    Some(evaluated.inspect())
 }
 
 fn print_parse_errors(errors: &[String]) {

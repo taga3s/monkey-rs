@@ -1,4 +1,3 @@
-use core::panic;
 use std::io::{self, Write};
 
 use ::lexer::lexer::Lexer;
@@ -44,8 +43,14 @@ fn start() -> io::Result<()> {
             continue;
         }
 
-        let evaluated = evaluator::eval(&program, env.clone());
-        println!("{}", evaluated.inspect());
+        match evaluator::eval(&program, env.clone()) {
+            Ok(result) => {
+                println!("{}", result.inspect());
+            }
+            Err(err) => {
+                println!("{}", err);
+            }
+        }
     }
 
     Ok(())
@@ -59,8 +64,8 @@ fn print_parse_errors(errors: &[String]) {
 
 fn main() {
     println!("Welcome to monkey-rs REPL! Feel free to type in commands.\nType /quit to exit.");
-
     if let Err(e) = start() {
-        panic!("Error: {}", e);
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
     }
 }

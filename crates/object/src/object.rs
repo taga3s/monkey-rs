@@ -1,11 +1,11 @@
 //! Object of Evaluation for the Monkey interpreter.
 
-use core::str;
-use std::{cell::RefCell, collections::HashMap, fmt, rc::Rc};
+use core::{fmt, str};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use ast::ast::{BlockStatement, Identifier};
 
-use crate::environment::Environment;
+use crate::{environment::Environment, error::EvaluationError};
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum ObjectType {
@@ -47,7 +47,6 @@ pub enum ObjectTypes {
     Array(Array),
     Null(Null),
     ReturnValue(ReturnValue),
-    Error(Error),
     Function(Function),
     Builtin(Builtin),
     Hash(Hash),
@@ -62,7 +61,6 @@ impl ObjectTypes {
             ObjectTypes::Array(array) => array.ty(),
             ObjectTypes::Null(null) => null.ty(),
             ObjectTypes::ReturnValue(return_value) => return_value.ty(),
-            ObjectTypes::Error(error) => error.ty(),
             ObjectTypes::Function(function) => function.ty(),
             ObjectTypes::Builtin(builtin) => builtin.ty(),
             ObjectTypes::Hash(hash) => hash.ty(),
@@ -77,7 +75,6 @@ impl ObjectTypes {
             ObjectTypes::Array(array) => array.as_type(ty),
             ObjectTypes::Null(null) => null.as_type(ty),
             ObjectTypes::ReturnValue(return_value) => return_value.as_type(ty),
-            ObjectTypes::Error(error) => error.as_type(ty),
             ObjectTypes::Function(function) => function.as_type(ty),
             ObjectTypes::Builtin(builtin) => builtin.as_type(ty),
             ObjectTypes::Hash(hash) => hash.as_type(ty),
@@ -92,7 +89,6 @@ impl ObjectTypes {
             ObjectTypes::Array(array) => array.inspect(),
             ObjectTypes::Null(null) => null.inspect(),
             ObjectTypes::ReturnValue(return_value) => return_value.inspect(),
-            ObjectTypes::Error(error) => error.inspect(),
             ObjectTypes::Function(function) => function.inspect(),
             ObjectTypes::Builtin(builtin) => builtin.inspect(),
             ObjectTypes::Hash(hash) => hash.inspect(),
@@ -266,25 +262,6 @@ impl Object for ReturnValue {
     }
 }
 
-#[derive(PartialEq, Clone)]
-pub struct Error {
-    pub message: String,
-}
-
-impl Object for Error {
-    fn ty(&self) -> ObjectType {
-        ObjectType::ErrorObj
-    }
-
-    fn as_type(&self, ty: ObjectType) -> bool {
-        ty == ObjectType::ErrorObj
-    }
-
-    fn inspect(&self) -> String {
-        format!("ERROR: {}", self.message)
-    }
-}
-
 #[derive(Clone)]
 pub struct Function {
     pub parameters: Vec<Identifier>,
@@ -307,7 +284,7 @@ impl Object for Function {
     }
 }
 
-pub type BuiltinFunction = fn(&[ObjectTypes]) -> ObjectTypes;
+pub type BuiltinFunction = fn(&[ObjectTypes]) -> Result<ObjectTypes, EvaluationError>;
 
 #[derive(Clone)]
 pub struct Builtin {
