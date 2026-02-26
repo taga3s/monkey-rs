@@ -165,11 +165,7 @@ fn is_error(obj: &ObjectTypes) -> bool {
 }
 
 fn native_bool_to_boolean_object(input: bool) -> ObjectTypes {
-    if input {
-        TRUE
-    } else {
-        FALSE
-    }
+    if input { TRUE } else { FALSE }
 }
 
 fn eval_prefix_expression(operator: &str, right: &ObjectTypes) -> ObjectTypes {
