@@ -37,11 +37,13 @@ fn start() -> io::Result<()> {
 
         let lexer = Lexer::new(trimmed);
         let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        if !parser.errors().is_empty() {
-            print_parse_errors(parser.errors());
-            continue;
-        }
+        let program = match parser.parse_program() {
+            Ok(program) => program,
+            Err(err) => {
+                eprintln!("{}", err);
+                continue;
+            }
+        };
 
         match evaluator::eval(&program, env.clone()) {
             Ok(result) => {
@@ -54,12 +56,6 @@ fn start() -> io::Result<()> {
     }
 
     Ok(())
-}
-
-fn print_parse_errors(errors: &[String]) {
-    for msg in errors {
-        eprintln!("Error: {}", msg);
-    }
 }
 
 fn main() {

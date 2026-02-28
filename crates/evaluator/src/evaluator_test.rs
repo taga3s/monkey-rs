@@ -13,7 +13,7 @@ use crate::evaluator::eval;
 fn test_eval(input: &str) -> Result<ObjectTypes, EvaluateError> {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+    let program = parser.parse_program().unwrap();
     let env = Environment::new();
 
     eval(&program, env)

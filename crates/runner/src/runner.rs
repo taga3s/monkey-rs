@@ -6,25 +6,18 @@ use object::environment::Environment;
 use parser::parser::Parser;
 
 #[wasm_bindgen]
-pub fn run(input: &str) -> Option<String> {
+pub fn run(input: &str) -> String {
     let env = Environment::new();
 
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
-    if !parser.errors().is_empty() {
-        print_parse_errors(parser.errors());
-        return None;
-    }
+    let program = match parser.parse_program() {
+        Ok(result) => result,
+        Err(err) => return format!("Error: {}", err),
+    };
 
     match evaluator::eval(&program, env) {
-        Ok(result) => Some(result.inspect()),
-        Err(err) => Some(format!("Error: {}", err)),
-    }
-}
-
-fn print_parse_errors(errors: &[String]) {
-    for msg in errors {
-        eprintln!("Error: {}", msg);
+        Ok(result) => result.inspect(),
+        Err(err) => format!("Error: {}", err),
     }
 }
