@@ -5,7 +5,7 @@ use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use ast::ast::{BlockStatement, Identifier};
 
-use crate::{environment::Environment, error::EvaluationError};
+use crate::{environment::Environment, error::EvaluateError};
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum ObjectType {
@@ -284,7 +284,7 @@ impl Object for Function {
     }
 }
 
-pub type BuiltinFunction = fn(&[ObjectTypes]) -> Result<ObjectTypes, EvaluationError>;
+pub type BuiltinFunction = fn(&[ObjectTypes]) -> Result<ObjectTypes, EvaluateError>;
 
 #[derive(Clone)]
 pub struct Builtin {

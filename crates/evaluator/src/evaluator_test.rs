@@ -1,7 +1,7 @@
 use lexer::lexer::Lexer;
 use object::{
     environment::Environment,
-    error::EvaluationError,
+    error::EvaluateError,
     object::{Boolean, Integer, Null, ObjectTypes, StringLiteral},
 };
 use parser::parser::Parser;
@@ -10,16 +10,16 @@ use utils::test::TestLiteral;
 use crate::evaluator::eval;
 
 // -- Test Helpers -- //
-fn test_eval(input: &str) -> Result<ObjectTypes, EvaluationError> {
+fn test_eval(input: &str) -> Result<ObjectTypes, EvaluateError> {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+    let program = parser.parse_program().unwrap();
     let env = Environment::new();
 
     eval(&program, env)
 }
 
-fn test_integer_object(obj: Result<ObjectTypes, EvaluationError>, expected: i64) {
+fn test_integer_object(obj: Result<ObjectTypes, EvaluateError>, expected: i64) {
     let value = match obj {
         Ok(ObjectTypes::Integer(integer)) => integer.value,
         Err(err) => panic!("object is not Integer. got={}", err),
@@ -29,7 +29,7 @@ fn test_integer_object(obj: Result<ObjectTypes, EvaluationError>, expected: i64)
     assert_eq!(value, expected);
 }
 
-fn test_boolean_object(obj: Result<ObjectTypes, EvaluationError>, expected: bool) {
+fn test_boolean_object(obj: Result<ObjectTypes, EvaluateError>, expected: bool) {
     let value = match obj {
         Ok(ObjectTypes::Boolean(boolean)) => boolean.value,
         Err(err) => panic!("object is not Boolean. got={}", err),
@@ -166,7 +166,7 @@ fn test_if_else_expressions() {
     }
 }
 
-fn test_null_object(obj: Result<ObjectTypes, EvaluationError>) -> bool {
+fn test_null_object(obj: Result<ObjectTypes, EvaluateError>) -> bool {
     match obj {
         Ok(ObjectTypes::Null(Null {})) => true,
         Err(err) => panic!("object is not Null. got={}", err),

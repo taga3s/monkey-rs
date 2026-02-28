@@ -21,9 +21,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut buf = String::new();
     file.read_to_string(&mut buf)?;
 
-    if let Some(result) = run(&buf) {
-        println!("{}", result);
-    }
+    let result = run(&buf);
+    println!("{}", result);
 
     Ok(())
 }

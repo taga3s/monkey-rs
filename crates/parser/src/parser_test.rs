@@ -13,10 +13,14 @@ fn test_parse_program(input: &str) -> Program {
     let mut parser = Parser::new(lexer);
 
     let program = match parser.parse_program() {
-        Node::Program(p) => p,
-        _ => {
-            panic!("parser.parse_program() did not return Program.");
+        Ok(Node::Program(p)) => p,
+        Err(err) => {
+            panic!(
+                "parser.parse_program() did not return Program. reason: {}",
+                err
+            );
         }
+        _ => panic!("parser.parse_program() did not return Program"),
     };
     check_parser_errors(&parser);
     program
