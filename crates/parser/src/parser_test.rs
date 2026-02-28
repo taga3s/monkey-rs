@@ -7,7 +7,7 @@ use utils::test::TestLiteral;
 
 use crate::parser::Parser;
 
-//-- Helpers for tests --//
+//-- Test helpers --//
 fn test_parse_program(input: &str) -> Program {
     let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
