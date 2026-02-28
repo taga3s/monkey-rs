@@ -503,10 +503,19 @@ impl Parser {
 
         self.next_token();
 
-        while !self.cur_token_is(TokenType::RBRACE) && !self.cur_token_is(TokenType::EOF) {
-            if let Ok(stmt) = self.parse_statement() {
-                block.statements.push(stmt);
+        loop {
+            if self.cur_token_is(TokenType::RBRACE) {
+                break;
             }
+
+            if self.cur_token_is(TokenType::EOF) {
+                return Err(new_parse_error(
+                    "[internal:parser] expected '}' to end block",
+                ));
+            }
+
+            let stmt = self.parse_statement()?;
+            block.statements.push(stmt);
             self.next_token();
         }
 
