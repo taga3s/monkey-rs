@@ -5,7 +5,7 @@ use ast::ast::{
 };
 use object::{
     environment::Environment,
-    error::{EvaluationError, new_evaluation_error},
+    error::{EvaluateError, new_evaluate_error},
     object::{
         Array, Boolean, Function, Hash, HashPair, Integer, Null, ObjectType, ObjectTypes,
         ReturnValue, StringLiteral,
@@ -18,7 +18,7 @@ const NULL: ObjectTypes = ObjectTypes::Null(Null {});
 const TRUE: ObjectTypes = ObjectTypes::Boolean(Boolean { value: true });
 const FALSE: ObjectTypes = ObjectTypes::Boolean(Boolean { value: false });
 
-pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, EvaluationError> {
+pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, EvaluateError> {
     let result = match node {
         Node::Program(program) => eval_program(program, env)?,
         Node::Expression(expr) => match expr {
@@ -33,13 +33,13 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
             }
             Expression::IndexExpression(ie) => {
                 let left = eval(
-                    ie.left.as_ref().ok_or(new_evaluation_error(
+                    ie.left.as_ref().ok_or(new_evaluate_error(
                         "[internal:evaluator] missing left operand in index expression",
                     ))?,
                     env.clone(),
                 )?;
                 let index = eval(
-                    ie.index.as_ref().ok_or(new_evaluation_error(
+                    ie.index.as_ref().ok_or(new_evaluate_error(
                         "[internal:evaluator] missing index in index expression",
                     ))?,
                     env.clone(),
@@ -49,13 +49,13 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
             Expression::Identifier(ident) => eval_identifier(ident, env.clone())?,
             Expression::Infix(infix) => {
                 let left = eval(
-                    infix.left.as_ref().ok_or(new_evaluation_error(
+                    infix.left.as_ref().ok_or(new_evaluate_error(
                         "[internal:evaluator] missing left operand in infix expression",
                     ))?,
                     env.clone(),
                 )?;
                 let right = eval(
-                    infix.right.as_ref().ok_or(new_evaluation_error(
+                    infix.right.as_ref().ok_or(new_evaluate_error(
                         "[internal:evaluator] missing right operand in infix expression",
                     ))?,
                     env.clone(),
@@ -64,7 +64,7 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
             }
             Expression::Prefix(prefix) => {
                 let right = eval(
-                    prefix.right.as_ref().ok_or(new_evaluation_error(
+                    prefix.right.as_ref().ok_or(new_evaluate_error(
                         "[internal:evaluator] missing operand in prefix expression",
                     ))?,
                     env,
@@ -80,7 +80,7 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
                             parameters.push(ident.clone())
                         }
                         _ => {
-                            return Err(new_evaluation_error(
+                            return Err(new_evaluate_error(
                                 "function parameter is not an identifier",
                             ));
                         }
@@ -89,16 +89,14 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
                 let body = match fl
                     .body
                     .as_ref()
-                    .ok_or(new_evaluation_error(
+                    .ok_or(new_evaluate_error(
                         "[internal:evaluator] missing function body",
                     ))?
                     .as_ref()
                 {
                     Node::Statement(Statement::BlockStatement(bs)) => bs,
                     _ => {
-                        return Err(new_evaluation_error(
-                            "function body is not a block statement",
-                        ));
+                        return Err(new_evaluate_error("function body is not a block statement"));
                     }
                 };
                 return Ok(ObjectTypes::Function(Function {
@@ -116,14 +114,14 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
         },
         Node::Statement(stmt) => match stmt {
             Statement::ExpressionStatement(es) => eval(
-                es.expression.as_ref().ok_or(new_evaluation_error(
+                es.expression.as_ref().ok_or(new_evaluate_error(
                     "[internal:evaluator] missing expression in expression statement",
                 ))?,
                 env,
             )?,
             Statement::Let(ls) => {
                 let val = eval(
-                    ls.value.as_ref().ok_or(new_evaluation_error(
+                    ls.value.as_ref().ok_or(new_evaluate_error(
                         "[internal:evaluator] missing value in let statement",
                     ))?,
                     env.clone(),
@@ -131,7 +129,7 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
                 env.borrow_mut().set(
                     &ls.name
                         .as_ref()
-                        .ok_or(new_evaluation_error(
+                        .ok_or(new_evaluate_error(
                             "[internal:evaluator] missing identifier in let statement",
                         ))?
                         .value,
@@ -141,7 +139,7 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
             }
             Statement::Return(rs) => {
                 let val = eval(
-                    rs.return_value.as_ref().ok_or(new_evaluation_error(
+                    rs.return_value.as_ref().ok_or(new_evaluate_error(
                         "[internal:evaluator] missing return value in return statement",
                     ))?,
                     env,
@@ -159,7 +157,7 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
 fn eval_program(
     program: &Program,
     env: Rc<RefCell<Environment>>,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     let mut result = NULL;
 
     for stmt in &program.statements {
@@ -174,7 +172,7 @@ fn eval_program(
 fn eval_block_statement(
     bs: &BlockStatement,
     env: Rc<RefCell<Environment>>,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     let mut result = NULL;
 
     for stmt in &bs.statements {
@@ -186,18 +184,18 @@ fn eval_block_statement(
     Ok(result)
 }
 
-fn native_bool_to_boolean_object(input: bool) -> Result<ObjectTypes, EvaluationError> {
+fn native_bool_to_boolean_object(input: bool) -> Result<ObjectTypes, EvaluateError> {
     if input { Ok(TRUE) } else { Ok(FALSE) }
 }
 
 fn eval_prefix_expression(
     operator: &str,
     right: &ObjectTypes,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     match operator {
         "!" => eval_bang_operator_expression(right),
         "-" => eval_minus_prefix_operator_expression(right),
-        _ => Err(new_evaluation_error(&format!(
+        _ => Err(new_evaluate_error(&format!(
             "unknown operator: {}{}",
             operator,
             right.ty()
@@ -208,7 +206,7 @@ fn eval_prefix_expression(
 fn eval_identifier(
     node: &Identifier,
     env: Rc<RefCell<Environment>>,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     if let Some(val) = env.borrow().get(&node.value) {
         return Ok(val);
     }
@@ -217,13 +215,13 @@ fn eval_identifier(
         return Ok(ObjectTypes::Builtin(builtin.clone()));
     }
 
-    Err(new_evaluation_error(&format!(
+    Err(new_evaluate_error(&format!(
         "identifier not found: {}",
         node.value
     )))
 }
 
-fn eval_bang_operator_expression(right: &ObjectTypes) -> Result<ObjectTypes, EvaluationError> {
+fn eval_bang_operator_expression(right: &ObjectTypes) -> Result<ObjectTypes, EvaluateError> {
     match right {
         ObjectTypes::Boolean(boolean) => {
             if boolean.value {
@@ -239,9 +237,9 @@ fn eval_bang_operator_expression(right: &ObjectTypes) -> Result<ObjectTypes, Eva
 
 fn eval_minus_prefix_operator_expression(
     right: &ObjectTypes,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     if right.ty() != ObjectType::IntegerObj {
-        return Err(new_evaluation_error(&format!(
+        return Err(new_evaluate_error(&format!(
             "unknown operator: -{}",
             right.ty()
         )));
@@ -251,7 +249,7 @@ fn eval_minus_prefix_operator_expression(
         ObjectTypes::Integer(integer) => Ok(ObjectTypes::Integer(Integer {
             value: -integer.value,
         })),
-        _ => Err(new_evaluation_error(&format!(
+        _ => Err(new_evaluate_error(&format!(
             "unknown operator: -{}",
             right.ty()
         ))),
@@ -262,7 +260,7 @@ fn eval_infix_expression(
     operator: &str,
     left: &ObjectTypes,
     right: &ObjectTypes,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     if left.as_type(ObjectType::IntegerObj) && right.as_type(ObjectType::IntegerObj) {
         return eval_integer_infix_expression(operator, left, right);
     };
@@ -270,7 +268,7 @@ fn eval_infix_expression(
         return eval_string_infix_expression(operator, left, right);
     };
     if left.ty() != right.ty() {
-        return Err(new_evaluation_error(&format!(
+        return Err(new_evaluate_error(&format!(
             "type mismatch: {} {} {}",
             left.ty(),
             operator,
@@ -285,7 +283,7 @@ fn eval_infix_expression(
         return native_bool_to_boolean_object(left.inspect() != right.inspect());
     }
 
-    Err(new_evaluation_error(&format!(
+    Err(new_evaluate_error(&format!(
         "unknown operator: {} {} {}",
         left.ty(),
         operator,
@@ -297,14 +295,14 @@ fn eval_integer_infix_expression(
     operator: &str,
     left: &ObjectTypes,
     right: &ObjectTypes,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     let left_val = match &left {
         ObjectTypes::Integer(integer) => integer.value,
-        _ => return Err(new_evaluation_error("left is not an integer")),
+        _ => return Err(new_evaluate_error("left is not an integer")),
     };
     let right_val = match &right {
         ObjectTypes::Integer(integer) => integer.value,
-        _ => return Err(new_evaluation_error("right is not an integer")),
+        _ => return Err(new_evaluate_error("right is not an integer")),
     };
 
     match operator {
@@ -319,7 +317,7 @@ fn eval_integer_infix_expression(
         })),
         "/" => {
             if right_val == 0 {
-                return Err(new_evaluation_error(&format!(
+                return Err(new_evaluate_error(&format!(
                     "attempt to divide by zero: {} {} {}",
                     left_val, operator, right_val
                 )));
@@ -332,7 +330,7 @@ fn eval_integer_infix_expression(
         ">" => native_bool_to_boolean_object(left_val > right_val),
         "==" => native_bool_to_boolean_object(left_val == right_val),
         "!=" => native_bool_to_boolean_object(left_val != right_val),
-        _ => Err(new_evaluation_error(&format!(
+        _ => Err(new_evaluate_error(&format!(
             "unknown operator: {} {} {}",
             &left.ty(),
             operator,
@@ -345,21 +343,21 @@ fn eval_string_infix_expression(
     operator: &str,
     left: &ObjectTypes,
     right: &ObjectTypes,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     let left_val = match &left {
         ObjectTypes::StringLiteral(string) => string.value.clone(),
-        _ => return Err(new_evaluation_error("left is not a string")),
+        _ => return Err(new_evaluate_error("left is not a string")),
     };
     let right_val = match &right {
         ObjectTypes::StringLiteral(string) => string.value.clone(),
-        _ => return Err(new_evaluation_error("right is not a string")),
+        _ => return Err(new_evaluate_error("right is not a string")),
     };
 
     match operator {
         "+" => Ok(ObjectTypes::StringLiteral(StringLiteral {
             value: format!("{}{}", left_val, right_val),
         })),
-        _ => Err(new_evaluation_error(&format!(
+        _ => Err(new_evaluate_error(&format!(
             "unknown operator: {} {} {}",
             &left.ty(),
             operator,
@@ -379,16 +377,16 @@ fn is_truthy(obj: &ObjectTypes) -> bool {
 fn eval_if_expression(
     ie: &IfExpression,
     env: Rc<RefCell<Environment>>,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     let condition = eval(
-        ie.condition.as_ref().ok_or(new_evaluation_error(
+        ie.condition.as_ref().ok_or(new_evaluate_error(
             "[internal:evaluator] missing condition in if expression",
         ))?,
         env.clone(),
     )?;
     if is_truthy(&condition) {
         return eval(
-            ie.consequence.as_ref().ok_or(new_evaluation_error(
+            ie.consequence.as_ref().ok_or(new_evaluate_error(
                 "[internal:evaluator] missing consequence in if expression",
             ))?,
             env.clone(),
@@ -403,7 +401,7 @@ fn eval_if_expression(
 fn eval_expressions(
     exps: &[Box<Node>],
     env: Rc<RefCell<Environment>>,
-) -> Result<Vec<ObjectTypes>, EvaluationError> {
+) -> Result<Vec<ObjectTypes>, EvaluateError> {
     let mut result = vec![];
 
     for e in exps {
@@ -413,10 +411,7 @@ fn eval_expressions(
     Ok(result)
 }
 
-fn apply_function(
-    func: &ObjectTypes,
-    args: &[ObjectTypes],
-) -> Result<ObjectTypes, EvaluationError> {
+fn apply_function(func: &ObjectTypes, args: &[ObjectTypes]) -> Result<ObjectTypes, EvaluateError> {
     if let ObjectTypes::Function(function) = func {
         let extended_env = extend_function_env(function, args)?;
         let evaluated = eval(
@@ -430,7 +425,7 @@ fn apply_function(
         return (builtin.fn_)(args);
     }
 
-    Err(new_evaluation_error(&format!(
+    Err(new_evaluate_error(&format!(
         "not a function: {}",
         func.ty()
     )))
@@ -439,10 +434,10 @@ fn apply_function(
 fn extend_function_env(
     func: &Function,
     args: &[ObjectTypes],
-) -> Result<Rc<RefCell<Environment>>, EvaluationError> {
+) -> Result<Rc<RefCell<Environment>>, EvaluateError> {
     // Check if the number of arguments matches the number of parameters
     if func.parameters.len() != args.len() {
-        return Err(new_evaluation_error(&format!(
+        return Err(new_evaluate_error(&format!(
             "wrong number of arguments: expected {}, got {}",
             func.parameters.len(),
             args.len()
@@ -471,7 +466,7 @@ fn unwrap_return_value(obj: ObjectTypes) -> ObjectTypes {
 fn eval_index_expression(
     left: &ObjectTypes,
     index: &ObjectTypes,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     if left.as_type(ObjectType::ArrayObj) && index.as_type(ObjectType::IntegerObj) {
         return eval_array_expression(left, index);
     }
@@ -479,7 +474,7 @@ fn eval_index_expression(
         return eval_hash_index_expression(left, index);
     }
 
-    Err(new_evaluation_error(&format!(
+    Err(new_evaluate_error(&format!(
         "index operator not supported: {}",
         left.ty()
     )))
@@ -488,14 +483,14 @@ fn eval_index_expression(
 fn eval_array_expression(
     left: &ObjectTypes,
     index: &ObjectTypes,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     let array = match left {
         ObjectTypes::Array(array) => array,
-        _ => return Err(new_evaluation_error("left is not an array")),
+        _ => return Err(new_evaluate_error("left is not an array")),
     };
     let idx = match index {
         ObjectTypes::Integer(integer) => integer.value,
-        _ => return Err(new_evaluation_error("index is not an integer")),
+        _ => return Err(new_evaluate_error("index is not an integer")),
     };
 
     let array_len = array.elements.len() as i64;
@@ -512,7 +507,7 @@ fn eval_array_expression(
 fn eval_hash_literal(
     hl: &HashLiteral,
     env: Rc<RefCell<Environment>>,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     let mut pairs = HashMap::new();
 
     for (key_node, value_node) in &hl.pairs {
@@ -523,7 +518,7 @@ fn eval_hash_literal(
             ObjectTypes::Integer(i) => i.hash_key(),
             ObjectTypes::Boolean(b) => b.hash_key(),
             _ => {
-                return Err(new_evaluation_error(&format!(
+                return Err(new_evaluate_error(&format!(
                     "unusable as hash key: {}",
                     key.ty()
                 )));
@@ -541,10 +536,10 @@ fn eval_hash_literal(
 fn eval_hash_index_expression(
     left: &ObjectTypes,
     index: &ObjectTypes,
-) -> Result<ObjectTypes, EvaluationError> {
+) -> Result<ObjectTypes, EvaluateError> {
     let hash_object: &Hash = match left {
         ObjectTypes::Hash(h) => h,
-        _ => return Err(new_evaluation_error("left is not a hash")),
+        _ => return Err(new_evaluate_error("left is not a hash")),
     };
 
     let key = match index {
@@ -552,7 +547,7 @@ fn eval_hash_index_expression(
         ObjectTypes::Integer(i) => i.hash_key(),
         ObjectTypes::Boolean(b) => b.hash_key(),
         _ => {
-            return Err(new_evaluation_error(&format!(
+            return Err(new_evaluate_error(&format!(
                 "unusable as hash key: {}",
                 index.ty()
             )));
