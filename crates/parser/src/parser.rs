@@ -41,7 +41,6 @@ const PRECEDENCES: [(TokenType, Precedence); 10] = [
 
 pub struct Parser {
     lexer: Lexer,
-    errors: Vec<String>,
     cur_token: Token,
     peek_token: Token,
     prefix_parse_fns: HashMap<TokenType, PrefixParseFn>,
@@ -52,7 +51,6 @@ impl Parser {
     pub fn new(lexer: Lexer) -> Self {
         let mut parser = Parser {
             lexer,
-            errors: vec![],
             cur_token: Token::new(),
             peek_token: Token::new(),
             prefix_parse_fns: HashMap::new(),
@@ -87,18 +85,6 @@ impl Parser {
         parser.next_token();
 
         parser
-    }
-
-    pub fn errors(&self) -> &[String] {
-        &self.errors
-    }
-
-    fn peek_error(&mut self, tok: &TokenType) {
-        let msg = format!(
-            "expected next token to be \"{}\", got \"{}\" instead",
-            tok, self.peek_token.ty
-        );
-        self.errors.push(msg);
     }
 
     fn next_token(&mut self) {
@@ -582,7 +568,6 @@ impl Parser {
             self.next_token();
             true
         } else {
-            self.peek_error(tok);
             false
         }
     }

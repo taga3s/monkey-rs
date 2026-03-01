@@ -22,7 +22,6 @@ fn test_parse_program(input: &str) -> Program {
         }
         _ => panic!("parser.parse_program() did not return Program"),
     };
-    check_parser_errors(&parser);
     program
 }
 
@@ -156,18 +155,6 @@ fn test_infix_expression(
     }
 
     true
-}
-
-fn check_parser_errors(parser: &Parser) {
-    let errors = parser.errors();
-    if errors.is_empty() {
-        return;
-    }
-
-    eprintln!("parser has {} errors", errors.len());
-    for err in errors {
-        eprintln!("parser error: {}", err);
-    }
 }
 
 // -- Tests -- //

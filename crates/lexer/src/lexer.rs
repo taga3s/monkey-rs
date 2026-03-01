@@ -121,6 +121,15 @@ impl Lexer {
         }
     }
 
+    fn skip_comment(&mut self) {
+        loop {
+            self.read_char();
+            if self.ch.is_some_and(|c| c == '\n') || self.ch.is_none() {
+                break;
+            }
+        }
+    }
+
     fn read_identifier(&mut self) -> String {
         let position = self.position;
         while let Some(c) = self.ch {
@@ -152,15 +161,6 @@ impl Lexer {
             }
         }
         self.input_chars[position..self.position].iter().collect()
-    }
-
-    fn skip_comment(&mut self) {
-        loop {
-            self.read_char();
-            if self.ch.is_some_and(|c| c == '\n') || self.ch.is_none() {
-                break;
-            }
-        }
     }
 
     fn new_token<T: Into<String>>(&self, token_type: TokenType, ch: T) -> Token {
