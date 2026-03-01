@@ -60,7 +60,14 @@ impl Lexer {
                 '*' => self.new_token(TokenType::ASTERISK, current),
                 '<' => self.new_token(TokenType::LT, current),
                 '>' => self.new_token(TokenType::GT, current),
-                '/' => self.new_token(TokenType::SLASH, current),
+                '/' => {
+                    if self.peek_char().is_some_and(|c| c == '/') {
+                        self.skip_comment();
+                        return self.next_token();
+                    } else {
+                        self.new_token(TokenType::SLASH, current)
+                    }
+                }
                 '{' => self.new_token(TokenType::LBRACE, current),
                 '}' => self.new_token(TokenType::RBRACE, current),
                 '"' => {
@@ -145,6 +152,15 @@ impl Lexer {
             }
         }
         self.input_chars[position..self.position].iter().collect()
+    }
+
+    fn skip_comment(&mut self) {
+        loop {
+            self.read_char();
+            if self.ch.is_some_and(|c| c == '\n') || self.ch.is_none() {
+                break;
+            }
+        }
     }
 
     fn new_token<T: Into<String>>(&self, token_type: TokenType, ch: T) -> Token {
