@@ -27,7 +27,8 @@ fn test_next_token() {
     "foobar"
     "foo bar"
     [1, 2];
-    {"foo": "bar"};
+    // comment
+    {"foo": "bar"}; // comment2
     "#;
 
     let tests = vec![
