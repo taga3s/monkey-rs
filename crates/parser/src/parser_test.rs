@@ -1,16 +1,14 @@
 use std::vec;
 
-use ast::ast::{Expression, Node, Program, Statement, StringLiteral, TNode};
+use ast::ast::{Expression, Node, Program, Statement, TNode};
 use lexer::lexer::Lexer;
-use token::token::{Token, TokenType};
 use utils::{context::Context, test::TestLiteral};
 
 use crate::parser::Parser;
 
 //-- Test helpers --//
-fn test_parse_program(input: &str) -> Program {
-    let ctx = Context::new(input);
-    let lexer = Lexer::new(&ctx);
+fn test_parse_program<'a>(ctx: &'a Context<'a>) -> Program<'a> {
+    let lexer = Lexer::new(ctx);
     let mut parser = Parser::new(&ctx, lexer);
 
     let program = match parser.parse_program() {
@@ -37,18 +35,18 @@ fn check_parsed_program_len(program: &Program, expected_len: usize) {
     }
 }
 
-fn test_literal_expression(exp: &Expression, expected: &TestLiteral) -> bool {
+fn test_literal_expression(ctx: &Context, exp: &Expression, expected: &TestLiteral) -> bool {
     match expected {
-        TestLiteral::Int(value) => test_integer_literal(exp, value),
-        TestLiteral::Str(value) => test_identifier(exp, value),
-        TestLiteral::Bool(value) => test_boolean_literal(exp, value),
+        TestLiteral::Int(value) => test_integer_literal(ctx, exp, value),
+        TestLiteral::Str(value) => test_identifier(ctx, exp, value),
+        TestLiteral::Bool(value) => test_boolean_literal(ctx, exp, value),
         _ => {
             panic!("type of exp not handled. got={:?}", exp);
         }
     }
 }
 
-fn test_integer_literal(il: &Expression, value: &i64) -> bool {
+fn test_integer_literal(ctx: &Context, il: &Expression, value: &i64) -> bool {
     let integer = match il {
         Expression::IntegerLiteral(il) => il,
         _ => {
@@ -60,18 +58,18 @@ fn test_integer_literal(il: &Expression, value: &i64) -> bool {
         panic!("integer.value is not {}. got={}", value, integer.value);
     }
 
-    if integer.token_literal() != value.to_string() {
+    let literal_ref = integer.token_literal().with_ref(ctx).reference;
+    if literal_ref != value.to_string() {
         panic!(
             "integer.token_literal() is not {}. got={}",
-            value,
-            integer.token_literal()
+            value, literal_ref
         );
     }
 
     true
 }
 
-fn test_identifier(ident: &Expression, value: &str) -> bool {
+fn test_identifier(ctx: &Context, ident: &Expression, value: &str) -> bool {
     let ident = match ident {
         Expression::Identifier(ident) => ident,
         _ => {
@@ -79,22 +77,23 @@ fn test_identifier(ident: &Expression, value: &str) -> bool {
         }
     };
 
-    if ident.value != value {
-        panic!("ident.value is not {}. got={}", value, ident.value);
+    let ident_ref = ident.value.with_ref(ctx).reference;
+    if ident_ref != value {
+        panic!("ident.value is not {}. got={}", value, ident_ref);
     }
 
-    if ident.token_literal() != value {
+    let literal_ref = ident.token_literal().with_ref(ctx).reference;
+    if literal_ref != value {
         panic!(
             "ident.token_literal() is not {}. got={}",
-            value,
-            ident.token_literal()
+            value, literal_ref
         );
     }
 
     true
 }
 
-fn test_boolean_literal(exp: &Expression, value: &bool) -> bool {
+fn test_boolean_literal(ctx: &Context, exp: &Expression, value: &bool) -> bool {
     let boolean = match exp {
         Expression::Boolean(boolean) => boolean,
         _ => {
@@ -106,11 +105,11 @@ fn test_boolean_literal(exp: &Expression, value: &bool) -> bool {
         panic!("boolean.value is not {}. got={}", value, boolean.value);
     }
 
-    if boolean.token_literal() != value.to_string() {
+    let literal_ref = boolean.token_literal().with_ref(ctx).reference;
+    if literal_ref != value.to_string() {
         panic!(
             "boolean.token_literal() is not {}. got={}",
-            value,
-            boolean.token_literal()
+            value, literal_ref
         );
     }
 
@@ -118,6 +117,7 @@ fn test_boolean_literal(exp: &Expression, value: &bool) -> bool {
 }
 
 fn test_infix_expression(
+    ctx: &Context,
     exp: &Expression,
     left: TestLiteral,
     operator: &str,
@@ -137,12 +137,13 @@ fn test_infix_expression(
         }
     };
 
-    if !test_literal_expression(left_exp, &left) {
+    if !test_literal_expression(ctx, left_exp, &left) {
         return false;
     }
 
-    if op_exp.operator != operator {
-        panic!("operator is not {}. got={}", operator, op_exp.operator);
+    let operator_ref = op_exp.operator.with_ref(ctx).reference;
+    if operator_ref != operator {
+        panic!("operator is not {}. got={}", operator, operator_ref);
     }
 
     let right_exp = match op_exp.right.as_ref().unwrap().as_ref() {
@@ -152,7 +153,7 @@ fn test_infix_expression(
         }
     };
 
-    if !test_literal_expression(right_exp, &right) {
+    if !test_literal_expression(ctx, right_exp, &right) {
         return false;
     }
 
@@ -182,8 +183,9 @@ fn test_let_statements() {
 
     for test in tests {
         let (input, ident, expected) = test;
+        let ctx = Context::new(input);
 
-        let program = test_parse_program(input);
+        let program = test_parse_program(&ctx);
         check_parsed_program_len(&program, 1);
 
         let stmt = match &program.statements[0] {
@@ -192,7 +194,7 @@ fn test_let_statements() {
                 panic!("program.statements[0] is not Statement.");
             }
         };
-        if !test_let_statement(stmt, ident) {
+        if !test_let_statement(&ctx, stmt, ident) {
             return;
         }
 
@@ -207,12 +209,12 @@ fn test_let_statements() {
                 panic!("stmt is not LetStatement.");
             }
         };
-        if !test_literal_expression(let_stmt_value, &expected) {
+        if !test_literal_expression(&ctx, let_stmt_value, &expected) {
             return;
         }
     }
 
-    fn test_let_statement(stmt: &Statement, ident: &str) -> bool {
+    fn test_let_statement(ctx: &Context, stmt: &Statement, ident: &str) -> bool {
         if !matches!(stmt, Statement::Let(_)) {
             panic!("stmt is not LetStatement.");
         }
@@ -224,19 +226,28 @@ fn test_let_statements() {
             }
         };
 
-        if let_stmt.name.as_ref().unwrap().value != ident {
-            panic!(
-                "let_stmt.name.value not '{}'. got={}",
-                ident,
-                let_stmt.name.as_ref().unwrap().value
-            );
+        let ident_ref = let_stmt
+            .name
+            .as_ref()
+            .unwrap()
+            .value
+            .with_ref(ctx)
+            .reference;
+        if ident_ref != ident {
+            panic!("let_stmt.name.value not '{}'. got={}", ident, ident_ref);
         }
 
-        if let_stmt.name.as_ref().unwrap().token_literal() != *ident {
+        let literal_ref = let_stmt
+            .name
+            .as_ref()
+            .unwrap()
+            .value
+            .with_ref(ctx)
+            .reference;
+        if literal_ref != ident {
             panic!(
                 "let_stmt.name.token_literal() not '{}'. got={}",
-                ident,
-                let_stmt.name.as_ref().unwrap().token_literal()
+                ident, literal_ref
             );
         }
 
@@ -251,8 +262,8 @@ fn test_return_statements() {
       return 10;
       return 838383;
     "#;
-
-    let program = test_parse_program(input);
+    let ctx = Context::new(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 3);
 
     for stmt in program.statements.iter() {
@@ -263,10 +274,11 @@ fn test_return_statements() {
             }
         };
 
-        if return_stmt.token_literal() != "return" {
+        let literal_ref = return_stmt.token_literal().with_ref(&ctx).reference;
+        if literal_ref != "return" {
             panic!(
                 "return_stmt.token_literal() not 'return'. got={}",
-                return_stmt.token_literal()
+                literal_ref
             );
         }
     }
@@ -276,7 +288,8 @@ fn test_return_statements() {
 fn test_identifier_expression() {
     let input = "foobar;";
 
-    let program = test_parse_program(input);
+    let ctx = Context::new(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -289,23 +302,23 @@ fn test_identifier_expression() {
         _ => panic!("stmt.expression is not Identifier."),
     };
 
-    if ident.value != "foobar" {
-        panic!("ident.value is not 'foobar'. got={}", ident.value);
+    let ident_ref = ident.value.with_ref(&ctx).reference;
+    if ident_ref != "foobar" {
+        panic!("ident.value is not 'foobar'. got={}", ident_ref);
     }
 
-    if ident.token_literal() != "foobar" {
-        panic!(
-            "ident.token_literal() is not 'foobar'. got={}",
-            ident.token_literal()
-        );
+    let literal_ref = ident.token_literal().with_ref(&ctx).reference;
+    if literal_ref != "foobar" {
+        panic!("ident.token_literal() is not 'foobar'. got={}", literal_ref);
     }
 }
 
 #[test]
 fn test_integer_literal_expression() {
     let input = "5;";
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -322,20 +335,18 @@ fn test_integer_literal_expression() {
         panic!("literal.value is not 5. got={}", literal.value);
     }
 
-    if literal.token_literal() != "5" {
-        panic!(
-            "literal.token_literal() is not {}. got={}",
-            5,
-            literal.token_literal()
-        );
+    let literal_ref = literal.token_literal().with_ref(&ctx).reference;
+    if literal_ref != "5" {
+        panic!("literal.token_literal() is not {}. got={}", 5, literal_ref);
     }
 }
 
 #[test]
 fn test_string_literal_expression() {
     let input = r#""hello world";"#;
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -346,8 +357,9 @@ fn test_string_literal_expression() {
         Node::Expression(Expression::StringLiteral(literal)) => literal,
         _ => panic!("stmt.expression is not StringLiteral."),
     };
-    if literal.value != "hello world" {
-        panic!("literal.value is not 'hello world'. got={}", literal.value);
+    let literal_ref = literal.value.with_ref(&ctx).reference;
+    if literal_ref != "hello world" {
+        panic!("literal.value is not 'hello world'. got={}", literal_ref);
     }
 }
 
@@ -357,8 +369,9 @@ fn test_boolean_expression() {
 
     for test in tests {
         let (input, value) = test;
+        let ctx = Context::new(input);
 
-        let program = test_parse_program(input);
+        let program = test_parse_program(&ctx);
         check_parsed_program_len(&program, 1);
 
         let stmt = match &program.statements[0] {
@@ -375,11 +388,11 @@ fn test_boolean_expression() {
             panic!("boolean.value is not {}. got={}", value, boolean.value);
         }
 
-        if boolean.token_literal() != value.to_string() {
+        let literal_ref = boolean.token_literal().with_ref(&ctx).reference;
+        if literal_ref != value.to_string() {
             panic!(
                 "boolean.token_literal() is not {}. got={}",
-                value,
-                boolean.token_literal()
+                value, literal_ref
             );
         };
     }
@@ -388,8 +401,9 @@ fn test_boolean_expression() {
 #[test]
 fn test_parsing_array_literals() {
     let input = "[1, 2 * 2, 3 + 3]";
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -413,16 +427,29 @@ fn test_parsing_array_literals() {
         exprs.push(exp);
     }
 
-    test_literal_expression(exprs[0], &TestLiteral::Int(1));
-    test_infix_expression(exprs[1], TestLiteral::Int(2), "*", TestLiteral::Int(2));
-    test_infix_expression(exprs[2], TestLiteral::Int(3), "+", TestLiteral::Int(3));
+    test_literal_expression(&ctx, exprs[0], &TestLiteral::Int(1));
+    test_infix_expression(
+        &ctx,
+        exprs[1],
+        TestLiteral::Int(2),
+        "*",
+        TestLiteral::Int(2),
+    );
+    test_infix_expression(
+        &ctx,
+        exprs[2],
+        TestLiteral::Int(3),
+        "+",
+        TestLiteral::Int(3),
+    );
 }
 
 #[test]
 fn test_parsing_index_expressions() {
     let input = "myArray[1 + 1]";
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -441,7 +468,7 @@ fn test_parsing_index_expressions() {
         }
     };
 
-    if !test_identifier(ident, "myArray") {
+    if !test_identifier(&ctx, ident, "myArray") {
         return;
     }
 
@@ -451,7 +478,7 @@ fn test_parsing_index_expressions() {
             panic!("index_exp.index is not Expression.");
         }
     };
-    test_infix_expression(index, TestLiteral::Int(1), "+", TestLiteral::Int(1));
+    test_infix_expression(&ctx, index, TestLiteral::Int(1), "+", TestLiteral::Int(1));
 }
 
 #[test]
@@ -465,8 +492,9 @@ fn test_parsing_prefix_expressions() {
 
     for test in prefix_tests {
         let (input, operator, value) = test;
+        let ctx = Context::new(input);
 
-        let program = test_parse_program(input);
+        let program = test_parse_program(&ctx);
         check_parsed_program_len(&program, 1);
 
         let stmt = match &program.statements[0] {
@@ -479,10 +507,11 @@ fn test_parsing_prefix_expressions() {
             _ => panic!("stmt.expression is not PrefixExpression."),
         };
 
-        if expression.operator != operator {
+        let operator_ref = expression.operator.with_ref(&ctx).reference;
+        if operator_ref != operator {
             panic!(
                 "expression.operator is not '{}'. got={}",
-                operator, expression.operator
+                operator, operator_ref
             );
         }
 
@@ -493,7 +522,7 @@ fn test_parsing_prefix_expressions() {
             }
         };
 
-        if !test_literal_expression(right_exp, &value) {
+        if !test_literal_expression(&ctx, right_exp, &value) {
             return;
         }
     }
@@ -532,8 +561,9 @@ fn test_parsing_infix_expressions() {
 
     for test in infix_tests {
         let (input, left_value, operator, right_value) = test;
+        let ctx = Context::new(input);
 
-        let program = test_parse_program(input);
+        let program = test_parse_program(&ctx);
         check_parsed_program_len(&program, 1);
 
         let stmt = match &program.statements[0] {
@@ -546,7 +576,7 @@ fn test_parsing_infix_expressions() {
             _ => panic!("stmt.expression is not InfixExpression."),
         };
 
-        if !test_infix_expression(exp, left_value, operator, right_value) {
+        if !test_infix_expression(&ctx, exp, left_value, operator, right_value) {
             return;
         }
     }
@@ -600,8 +630,9 @@ fn test_operator_precedence_parsing() {
 
     for test in tests {
         let (input, expected) = test;
+        let ctx = Context::new(input);
 
-        let program = test_parse_program(input);
+        let program = test_parse_program(&ctx);
         let actual = program.to_string();
         if actual != expected {
             panic!("expected={}, got={}", expected, actual);
@@ -612,8 +643,9 @@ fn test_operator_precedence_parsing() {
 #[test]
 fn test_if_expression() {
     let input = "if (x < y) { x }";
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -633,7 +665,7 @@ fn test_if_expression() {
         }
     };
 
-    if !test_infix_expression(exp, TestLiteral::Str("x"), "<", TestLiteral::Str("y")) {
+    if !test_infix_expression(&ctx, exp, TestLiteral::Str("x"), "<", TestLiteral::Str("y")) {
         return;
     }
 
@@ -664,7 +696,7 @@ fn test_if_expression() {
         Node::Expression(e) => e,
         _ => panic!("consequence.expression is not Identifier."),
     };
-    if !test_identifier(ident, "x") {
+    if !test_identifier(&ctx, ident, "x") {
         return;
     }
 
@@ -676,8 +708,9 @@ fn test_if_expression() {
 #[test]
 fn test_if_else_expression() {
     let input = "if (x < y) { x } else { y }";
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -697,7 +730,13 @@ fn test_if_else_expression() {
         }
     };
 
-    if !test_infix_expression(condition, TestLiteral::Str("x"), "<", TestLiteral::Str("y")) {
+    if !test_infix_expression(
+        &ctx,
+        condition,
+        TestLiteral::Str("x"),
+        "<",
+        TestLiteral::Str("y"),
+    ) {
         return;
     }
 
@@ -729,7 +768,7 @@ fn test_if_else_expression() {
         _ => panic!("consequence.expression is not Identifier."),
     };
 
-    if !test_identifier(ident, "x") {
+    if !test_identifier(&ctx, ident, "x") {
         return;
     }
 
@@ -761,14 +800,15 @@ fn test_if_else_expression() {
         _ => panic!("alternative.expression is not Identifier."),
     };
 
-    if !test_identifier(ident, "y") {}
+    if !test_identifier(&ctx, ident, "y") {}
 }
 
 #[test]
 fn test_function_literal_parsing() {
     let input = "fn(x, y) { x + y; }";
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -795,7 +835,7 @@ fn test_function_literal_parsing() {
         }
     };
 
-    if !test_literal_expression(param0, &TestLiteral::Str("x")) {
+    if !test_literal_expression(&ctx, param0, &TestLiteral::Str("x")) {
         return;
     }
 
@@ -806,7 +846,7 @@ fn test_function_literal_parsing() {
         }
     };
 
-    if !test_literal_expression(param1, &TestLiteral::Str("y")) {
+    if !test_literal_expression(&ctx, param1, &TestLiteral::Str("y")) {
         return;
     }
 
@@ -834,7 +874,7 @@ fn test_function_literal_parsing() {
         _ => panic!("body_stmt.expression is not InfixExpression."),
     };
 
-    if !test_infix_expression(exp, TestLiteral::Str("x"), "+", TestLiteral::Str("y")) {}
+    if !test_infix_expression(&ctx, exp, TestLiteral::Str("x"), "+", TestLiteral::Str("y")) {}
 }
 
 #[test]
@@ -854,8 +894,9 @@ fn test_function_parameter_parsing() {
 
     for test in tests {
         let (input, expected_params) = test;
+        let ctx = Context::new(input);
 
-        let program = test_parse_program(input);
+        let program = test_parse_program(&ctx);
         check_parsed_program_len(&program, 1);
 
         let stmt = match &program.statements[0] {
@@ -883,7 +924,7 @@ fn test_function_parameter_parsing() {
                     panic!("func.parameters[{}] is not Expression.", i);
                 }
             };
-            if !test_literal_expression(param, ident) {
+            if !test_literal_expression(&ctx, param, ident) {
                 return;
             }
         }
@@ -893,8 +934,9 @@ fn test_function_parameter_parsing() {
 #[test]
 fn test_call_expression_parsing() {
     let input = "add(1, 2 * 3, 4 + 5);";
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -914,7 +956,7 @@ fn test_call_expression_parsing() {
         }
     };
 
-    if !test_identifier(func, "add") {
+    if !test_identifier(&ctx, func, "add") {
         return;
     }
 
@@ -932,7 +974,7 @@ fn test_call_expression_parsing() {
         }
     };
 
-    if !test_literal_expression(exp0, &TestLiteral::Int(1)) {
+    if !test_literal_expression(&ctx, exp0, &TestLiteral::Int(1)) {
         return;
     }
 
@@ -943,7 +985,7 @@ fn test_call_expression_parsing() {
         }
     };
 
-    if !test_infix_expression(exp1, TestLiteral::Int(2), "*", TestLiteral::Int(3)) {
+    if !test_infix_expression(&ctx, exp1, TestLiteral::Int(2), "*", TestLiteral::Int(3)) {
         return;
     }
 
@@ -954,14 +996,15 @@ fn test_call_expression_parsing() {
         }
     };
 
-    if !test_infix_expression(exp2, TestLiteral::Int(4), "+", TestLiteral::Int(5)) {}
+    if !test_infix_expression(&ctx, exp2, TestLiteral::Int(4), "+", TestLiteral::Int(5)) {}
 }
 
 #[test]
 fn test_parsing_hash_literals_string_keys() {
     let input = r#"{"one": 1, "two": 2, "three": 3}"#;
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -980,39 +1023,29 @@ fn test_parsing_hash_literals_string_keys() {
         );
     }
 
-    let expected = vec![
-        (TestLiteral::Str("one"), TestLiteral::Int(1)),
-        (TestLiteral::Str("two"), TestLiteral::Int(2)),
-        (TestLiteral::Str("three"), TestLiteral::Int(3)),
-    ];
+    let expected_map: std::collections::HashMap<&str, i64> =
+        vec![("one", 1), ("two", 2), ("three", 3)]
+            .into_iter()
+            .collect();
 
-    for (key, expected_value) in expected {
-        let _key = match key {
-            TestLiteral::Str(s) => {
-                Box::new(Node::Expression(Expression::StringLiteral(StringLiteral {
-                    token: Token {
-                        ty: TokenType::STRING,
-                        literal: s.to_string(),
-                    },
-                    value: s.to_string(),
-                })))
-            }
-            _ => {
-                panic!("key is not StringLiteral.");
-            }
+    for (key, value) in hash.pairs.iter() {
+        let key_expr = match key.as_ref() {
+            Node::Expression(Expression::StringLiteral(s)) => s,
+            _ => panic!("key is not StringLiteral."),
         };
-        let value = match hash.pairs.get(&_key) {
-            Some(e) => match e.as_ref() {
-                Node::Expression(e) => e,
-                _ => {
-                    panic!("hash.pairs key is not Expression.");
-                }
-            },
-            None => {
-                panic!("hash.pairs does not contain key.");
-            }
+        let key_str = key_expr.value.with_ref(&ctx).reference;
+
+        let expected_value = match expected_map.get(key_str) {
+            Some(v) => TestLiteral::Int(*v),
+            None => panic!("unexpected key: {}", key_str),
         };
-        if !test_literal_expression(value, &expected_value) {
+
+        let value_expr = match value.as_ref() {
+            Node::Expression(e) => e,
+            _ => panic!("value is not Expression."),
+        };
+
+        if !test_literal_expression(&ctx, value_expr, &expected_value) {
             return;
         }
     }
@@ -1021,8 +1054,9 @@ fn test_parsing_hash_literals_string_keys() {
 #[test]
 fn test_parsing_empty_hash_literal() {
     let input = "{}";
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -1042,8 +1076,9 @@ fn test_parsing_empty_hash_literal() {
 #[test]
 fn test_parsing_hash_literals_with_expressions() {
     let input = r#"{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}"#;
+    let ctx = Context::new(input);
 
-    let program = test_parse_program(input);
+    let program = test_parse_program(&ctx);
     check_parsed_program_len(&program, 1);
 
     let stmt = match &program.statements[0] {
@@ -1062,54 +1097,38 @@ fn test_parsing_hash_literals_with_expressions() {
         );
     }
 
-    let expected = vec![
-        (
-            TestLiteral::Str("one"),
-            TestLiteral::Int(0),
-            "+",
-            TestLiteral::Int(1),
-        ),
-        (
-            TestLiteral::Str("two"),
-            TestLiteral::Int(10),
-            "-",
-            TestLiteral::Int(8),
-        ),
-        (
-            TestLiteral::Str("three"),
-            TestLiteral::Int(15),
-            "/",
-            TestLiteral::Int(5),
-        ),
-    ];
+    let expected_map: std::collections::HashMap<&str, (i64, &str, i64)> = vec![
+        ("one", (0, "+", 1)),
+        ("two", (10, "-", 8)),
+        ("three", (15, "/", 5)),
+    ]
+    .into_iter()
+    .collect();
 
-    for (key, left, operator, right) in expected {
-        let _key = match key {
-            TestLiteral::Str(s) => {
-                Box::new(Node::Expression(Expression::StringLiteral(StringLiteral {
-                    token: Token {
-                        ty: TokenType::STRING,
-                        literal: s.to_string(),
-                    },
-                    value: s.to_string(),
-                })))
-            }
-            _ => {
-                panic!("key is not StringLiteral.");
-            }
+    for (key, value) in hash.pairs.iter() {
+        let key_expr = match key.as_ref() {
+            Node::Expression(Expression::StringLiteral(s)) => s,
+            _ => panic!("key is not StringLiteral."),
         };
-        let value = match hash.pairs.get(&_key) {
-            Some(e) => match e.as_ref() {
-                Node::Expression(e) => e,
-                _ => {
-                    panic!("hash.pairs key is not Expression.");
-                }
-            },
-            None => {
-                panic!("hash.pairs does not contain key.");
-            }
+        let key_str = key_expr.value.with_ref(&ctx).reference;
+
+        let (left, operator, right) = match expected_map.get(key_str) {
+            Some(v) => v,
+            None => panic!("unexpected key: {}", key_str),
         };
-        if !test_infix_expression(value, left, operator, right) {
+
+        let value_expr = match value.as_ref() {
+            Node::Expression(e) => e,
+            _ => panic!("value is not Expression."),
+        };
+
+        if !test_infix_expression(
+            &ctx,
+            value_expr,
+            TestLiteral::Int(*left),
+            operator,
+            TestLiteral::Int(*right),
+        ) {
             return;
         }
     }
