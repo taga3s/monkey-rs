@@ -3,14 +3,15 @@ use std::vec;
 use ast::ast::{Expression, Node, Program, Statement, StringLiteral, TNode};
 use lexer::lexer::Lexer;
 use token::token::{Token, TokenType};
-use utils::test::TestLiteral;
+use utils::{context::Context, test::TestLiteral};
 
 use crate::parser::Parser;
 
 //-- Test helpers --//
 fn test_parse_program(input: &str) -> Program {
-    let lexer = Lexer::new(input);
-    let mut parser = Parser::new(lexer);
+    let ctx = Context::new(input);
+    let lexer = Lexer::new(&ctx);
+    let mut parser = Parser::new(&ctx, lexer);
 
     let program = match parser.parse_program() {
         Ok(Node::Program(p)) => p,

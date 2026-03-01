@@ -11,12 +11,34 @@ use object::{
         ReturnValue, StringLiteral,
     },
 };
+use utils::context::Context;
 
 use crate::builtins::BUILTINS;
 
 const NULL: ObjectTypes = ObjectTypes::Null(Null {});
 const TRUE: ObjectTypes = ObjectTypes::Boolean(Boolean { value: true });
 const FALSE: ObjectTypes = ObjectTypes::Boolean(Boolean { value: false });
+
+pub struct Evaluator {
+    pub env: Rc<RefCell<Environment>>,
+}
+
+impl Evaluator {
+    pub fn new() -> Self {
+        let env = Environment::new();
+        Self { env }
+    }
+
+    pub fn run(self, _ctx: &Context, node: &Node) -> Result<ObjectTypes, EvaluateError> {
+        eval(node, self.env)
+    }
+}
+
+impl Default for Evaluator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, EvaluateError> {
     let result = match node {

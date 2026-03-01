@@ -37,6 +37,7 @@ name = "lexer"
 version = "0.1.0"
 dependencies = [
  "token",
+ "utils",
 ]
 
 [[package]]
@@ -96,6 +97,7 @@ dependencies = [
  "object",
  "parser",
  "token",
+ "utils",
 ]
 
 [[package]]
@@ -108,6 +110,7 @@ dependencies = [
  "object",
  "parser",
  "token",
+ "utils",
  "wasm-bindgen",
 ]
 

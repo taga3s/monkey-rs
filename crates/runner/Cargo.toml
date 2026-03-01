@@ -14,4 +14,5 @@ ast = { path = "../ast" }
 parser = { path = "../parser" }
 evaluator = { path = "../evaluator" }
 object = { path = "../object" }
+utils = { path = "../utils" }
 wasm-bindgen = { workspace = true }

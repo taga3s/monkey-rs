@@ -1,4 +1,5 @@
 use ::token::token::{Token, TokenType, lookup_ident};
+use utils::context::Context;
 
 pub struct Lexer {
     input_chars: Vec<char>,
@@ -8,9 +9,9 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(input: &str) -> Lexer {
+    pub fn new(ctx: &Context) -> Lexer {
         let mut lexer = Lexer {
-            input_chars: input.chars().collect(),
+            input_chars: ctx.get_source().chars().collect(),
             position: 0,
             read_position: 0,
             ch: None,

@@ -1,22 +1,21 @@
 use lexer::lexer::Lexer;
 use object::{
-    environment::Environment,
     error::EvaluateError,
     object::{Boolean, Integer, Null, ObjectTypes, StringLiteral},
 };
 use parser::parser::Parser;
-use utils::test::TestLiteral;
+use utils::{context::Context, test::TestLiteral};
 
-use crate::evaluator::eval;
+use crate::evaluator::Evaluator;
 
 // -- Test Helpers -- //
 fn test_eval(input: &str) -> Result<ObjectTypes, EvaluateError> {
-    let lexer = Lexer::new(input);
-    let mut parser = Parser::new(lexer);
+    let ctx = Context::new(input);
+    let lexer = Lexer::new(&ctx);
+    let mut parser = Parser::new(&ctx, lexer);
     let program = parser.parse_program().unwrap();
-    let env = Environment::new();
-
-    eval(&program, env)
+    let evaluator = Evaluator::new();
+    evaluator.run(&ctx, &program)
 }
 
 fn test_integer_object(obj: Result<ObjectTypes, EvaluateError>, expected: i64) {

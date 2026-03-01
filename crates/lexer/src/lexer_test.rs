@@ -1,5 +1,6 @@
 use crate::lexer::Lexer;
 use token::token::TokenType;
+use utils::context::Context;
 
 #[test]
 fn test_next_token() {
@@ -120,7 +121,8 @@ fn test_next_token() {
         (TokenType::EOF, ""),
     ];
 
-    let mut lexer = Lexer::new(input);
+    let ctx = Context::new(input);
+    let mut lexer = Lexer::new(&ctx);
 
     for (i, (token_type, literal)) in tests.iter().enumerate() {
         let tok = lexer.next_token();

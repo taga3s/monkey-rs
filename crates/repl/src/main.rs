@@ -1,13 +1,12 @@
 use std::io::{self, Write};
 
-use ::lexer::lexer::Lexer;
-use evaluator::evaluator;
-use object::environment::Environment;
+use evaluator::evaluator::Evaluator;
+use lexer::lexer::Lexer;
 use parser::parser::Parser;
+use utils::context::Context;
 
 fn start() -> io::Result<()> {
     let mut input = String::new();
-    let env = Environment::new();
 
     loop {
         input.clear();
@@ -35,8 +34,9 @@ fn start() -> io::Result<()> {
             continue;
         }
 
-        let lexer = Lexer::new(trimmed);
-        let mut parser = Parser::new(lexer);
+        let ctx = Context::new(trimmed);
+        let lexer = Lexer::new(&ctx);
+        let mut parser = Parser::new(&ctx, lexer);
         let program = match parser.parse_program() {
             Ok(program) => program,
             Err(err) => {
@@ -45,7 +45,8 @@ fn start() -> io::Result<()> {
             }
         };
 
-        match evaluator::eval(&program, env.clone()) {
+        let evaluator = Evaluator::new();
+        match evaluator.run(&ctx, &program) {
             Ok(result) => {
                 println!("{}", result.inspect());
             }

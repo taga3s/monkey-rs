@@ -8,6 +8,7 @@ use ast::ast::{
 };
 use lexer::lexer::Lexer;
 use token::token::{Token, TokenType};
+use utils::context::Context;
 
 use crate::error::{ParseError, new_parse_error};
 
@@ -49,7 +50,7 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(lexer: Lexer) -> Self {
+    pub fn new(_ctx: &Context, lexer: Lexer) -> Self {
         let mut parser = Parser {
             lexer,
             errors: vec![],
