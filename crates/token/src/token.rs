@@ -136,6 +136,7 @@ impl Literal {
     }
 }
 
+#[derive(Debug)]
 pub struct LiteralWithRef<'ctx> {
     pub literal: Literal,
     pub reference: &'ctx str,

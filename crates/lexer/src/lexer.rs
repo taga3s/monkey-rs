@@ -138,36 +138,36 @@ impl<'ctx> Lexer<'ctx> {
     }
 
     fn read_identifier(&mut self) -> (usize, usize) {
-        let position = self.cur_position;
+        let start = self.cur_position;
         while let Some(c) = self.ch {
             if !self.is_letter(c) {
                 break;
             }
             self.read_char();
         }
-        (position, self.cur_position)
+        (start, self.cur_position)
     }
 
     fn read_number(&mut self) -> (usize, usize) {
-        let position = self.cur_position;
+        let start = self.cur_position;
         while let Some(c) = self.ch {
             if !self.is_digit(c) {
                 break;
             }
             self.read_char();
         }
-        (position, self.cur_position)
+        (start, self.cur_position)
     }
 
     fn read_string(&mut self) -> (usize, usize) {
-        let position = self.cur_position + 1;
+        let start = self.cur_position + 1;
         loop {
             self.read_char();
             if self.ch.is_some_and(|c| c == '"') || self.ch.is_none() {
                 break;
             }
         }
-        (position, self.cur_position)
+        (start, self.cur_position)
     }
 
     fn new_token(&self, token_type: TokenType, start: usize, end: usize) -> Token {
