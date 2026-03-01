@@ -6,3 +6,4 @@ edition.workspace = true
 
 [dependencies]
 token = { path = "../token" }
+utils = { path = "../utils" }

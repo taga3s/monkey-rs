@@ -12,8 +12,9 @@ use utils::context::Context;
 
 use crate::error::{ParseError, new_parse_error};
 
-type PrefixParseFn = fn(&mut Parser) -> Result<Box<Node>, ParseError>;
-type InfixParseFn = fn(&mut Parser, left: Box<Node>) -> Result<Box<Node>, ParseError>;
+type PrefixParseFn<'ctx> = fn(&mut Parser<'ctx>) -> Result<Box<Node<'ctx>>, ParseError>;
+type InfixParseFn<'ctx> =
+    fn(&mut Parser<'ctx>, left: Box<Node<'ctx>>) -> Result<Box<Node<'ctx>>, ParseError>;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub enum Precedence {
@@ -40,22 +41,24 @@ const PRECEDENCES: [(TokenType, Precedence); 10] = [
     (TokenType::LBRACKET, Precedence::INDEX),
 ];
 
-pub struct Parser {
-    lexer: Lexer,
+pub struct Parser<'ctx> {
+    ctx: &'ctx Context<'ctx>,
+    lexer: Lexer<'ctx>,
     errors: Vec<String>,
     cur_token: Token,
     peek_token: Token,
-    prefix_parse_fns: HashMap<TokenType, PrefixParseFn>,
-    infix_parse_fns: HashMap<TokenType, InfixParseFn>,
+    prefix_parse_fns: HashMap<TokenType, PrefixParseFn<'ctx>>,
+    infix_parse_fns: HashMap<TokenType, InfixParseFn<'ctx>>,
 }
 
-impl Parser {
-    pub fn new(_ctx: &Context, lexer: Lexer) -> Self {
+impl<'ctx> Parser<'ctx> {
+    pub fn new(ctx: &'ctx Context<'ctx>, lexer: Lexer<'ctx>) -> Self {
         let mut parser = Parser {
+            ctx,
             lexer,
             errors: vec![],
-            cur_token: Token::new(),
-            peek_token: Token::new(),
+            cur_token: Token::new(0, 0),
+            peek_token: Token::new(0, 0),
             prefix_parse_fns: HashMap::new(),
             infix_parse_fns: HashMap::new(),
         };
@@ -107,17 +110,20 @@ impl Parser {
         self.peek_token = self.lexer.next_token();
     }
 
-    pub fn parse_program(&mut self) -> Result<Node, ParseError> {
+    pub fn parse_program(&mut self) -> Result<Node<'ctx>, ParseError> {
         let mut stmts = vec![];
         while self.cur_token.ty != TokenType::EOF {
             let stmt = self.parse_statement()?;
             stmts.push(stmt);
             self.next_token();
         }
-        Ok(Node::Program(Program { statements: stmts }))
+        Ok(Node::Program(Program {
+            ctx: self.ctx,
+            statements: stmts,
+        }))
     }
 
-    fn parse_statement(&mut self) -> Result<Node, ParseError> {
+    fn parse_statement(&mut self) -> Result<Node<'ctx>, ParseError> {
         let stmt = match self.cur_token.ty {
             TokenType::LET => self.parse_let_statement(),
             TokenType::RETURN => self.parse_return_statement(),
@@ -126,8 +132,9 @@ impl Parser {
         stmt.map(Node::Statement)
     }
 
-    fn parse_let_statement(&mut self) -> Result<Statement, ParseError> {
+    fn parse_let_statement(&mut self) -> Result<Statement<'ctx>, ParseError> {
         let mut stmt = LetStatement {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             name: None,
             value: None,
@@ -140,8 +147,9 @@ impl Parser {
         }
 
         stmt.name = Some(Identifier {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
-            value: self.cur_token.literal.clone(),
+            value: self.cur_token.literal,
         });
 
         if !self.expect_peek(&TokenType::ASSIGN) {
@@ -162,8 +170,9 @@ impl Parser {
         Ok(Statement::Let(stmt))
     }
 
-    fn parse_return_statement(&mut self) -> Result<Statement, ParseError> {
+    fn parse_return_statement(&mut self) -> Result<Statement<'ctx>, ParseError> {
         let mut stmt = ReturnStatement {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             return_value: None,
         };
@@ -180,9 +189,10 @@ impl Parser {
         Ok(Statement::Return(stmt))
     }
 
-    fn parse_expression_statement(&mut self) -> Result<Statement, ParseError> {
+    fn parse_expression_statement(&mut self) -> Result<Statement<'ctx>, ParseError> {
         let expr = self.parse_expression(Precedence::LOWEST)?;
         let stmt = ExpressionStatement {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             expression: Some(expr),
         };
@@ -194,7 +204,7 @@ impl Parser {
         Ok(Statement::ExpressionStatement(stmt))
     }
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Result<Box<Node>, ParseError> {
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<Box<Node<'ctx>>, ParseError> {
         let prefix_parse_fn = match self.prefix_parse_fns.get(&self.cur_token.ty) {
             Some(p) => p,
             None => {
@@ -222,30 +232,33 @@ impl Parser {
         left_expr
     }
 
-    fn register_prefix(&mut self, tok: TokenType, fn_: PrefixParseFn) {
+    fn register_prefix(&mut self, tok: TokenType, fn_: PrefixParseFn<'ctx>) {
         self.prefix_parse_fns.insert(tok, fn_);
     }
 
-    fn parse_identifier(&mut self) -> Result<Box<Node>, ParseError> {
+    fn parse_identifier(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
         let ident = Identifier {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
-            value: self.cur_token.literal.clone(),
+            value: self.cur_token.literal,
         };
         Ok(Box::new(Node::Expression(Expression::Identifier(ident))))
     }
 
-    fn parse_integer_literal(&mut self) -> Result<Box<Node>, ParseError> {
-        let value = match self.cur_token.literal.parse::<i64>() {
+    fn parse_integer_literal(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
+        let literal_ref = self.cur_token.literal.with_ref(self.ctx);
+        let value = match literal_ref.reference.parse::<i64>() {
             Ok(v) => v,
             Err(_) => {
                 return Err(new_parse_error(&format!(
                     "[internal:parser] could not parse '{}' as integer",
-                    self.cur_token.literal
+                    literal_ref.reference
                 )));
             }
         };
 
         let ident = IntegerLiteral {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             value,
         };
@@ -255,26 +268,29 @@ impl Parser {
         ))))
     }
 
-    fn parse_string_literal(&mut self) -> Result<Box<Node>, ParseError> {
+    fn parse_string_literal(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
         Ok(Box::new(Node::Expression(Expression::StringLiteral(
             StringLiteral {
+                ctx: self.ctx,
                 token: self.cur_token.clone(),
-                value: self.cur_token.literal.clone(),
+                value: self.cur_token.literal,
             },
         ))))
     }
 
-    fn parse_boolean(&mut self) -> Result<Box<Node>, ParseError> {
+    fn parse_boolean(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
         Ok(Box::new(Node::Expression(Expression::Boolean(Boolean {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             value: self.cur_token_is(TokenType::TRUE),
         }))))
     }
 
-    fn parse_prefix_expression(&mut self) -> Result<Box<Node>, ParseError> {
+    fn parse_prefix_expression(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
         let mut expression = PrefixExpression {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
-            operator: self.cur_token.literal.clone(),
+            operator: self.cur_token.literal,
             right: None,
         };
 
@@ -286,7 +302,7 @@ impl Parser {
         Ok(Box::new(Node::Expression(Expression::Prefix(expression))))
     }
 
-    fn parse_grouped_expression(&mut self) -> Result<Box<Node>, ParseError> {
+    fn parse_grouped_expression(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
         self.next_token();
 
         let expr = self.parse_expression(Precedence::LOWEST);
@@ -300,9 +316,10 @@ impl Parser {
         expr
     }
 
-    fn parse_array_literal(&mut self) -> Result<Box<Node>, ParseError> {
+    fn parse_array_literal(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
         let elements = self.parse_expression_list(TokenType::RBRACKET)?;
         let array = ArrayLiteral {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             elements,
         };
@@ -310,7 +327,10 @@ impl Parser {
     }
 
     #[allow(clippy::vec_box)]
-    fn parse_expression_list(&mut self, end: TokenType) -> Result<Vec<Box<Node>>, ParseError> {
+    fn parse_expression_list(
+        &mut self,
+        end: TokenType,
+    ) -> Result<Vec<Box<Node<'ctx>>>, ParseError> {
         let mut list = vec![];
 
         if self.peek_token_is(&end) {
@@ -339,8 +359,12 @@ impl Parser {
         Ok(list)
     }
 
-    fn parse_index_expression(&mut self, left: Box<Node>) -> Result<Box<Node>, ParseError> {
+    fn parse_index_expression(
+        &mut self,
+        left: Box<Node<'ctx>>,
+    ) -> Result<Box<Node<'ctx>>, ParseError> {
         let mut expr = IndexExpression {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             left: Some(left),
             index: None,
@@ -361,15 +385,19 @@ impl Parser {
         ))))
     }
 
-    fn register_infix(&mut self, tok: TokenType, fn_: InfixParseFn) {
+    fn register_infix(&mut self, tok: TokenType, fn_: InfixParseFn<'ctx>) {
         self.infix_parse_fns.insert(tok, fn_);
     }
 
-    fn parse_infix_expression(&mut self, left: Box<Node>) -> Result<Box<Node>, ParseError> {
+    fn parse_infix_expression(
+        &mut self,
+        left: Box<Node<'ctx>>,
+    ) -> Result<Box<Node<'ctx>>, ParseError> {
         let mut expression = InfixExpression {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             left: Some(left),
-            operator: self.cur_token.literal.clone(),
+            operator: self.cur_token.literal,
             right: None,
         };
 
@@ -381,8 +409,9 @@ impl Parser {
         Ok(Box::new(Node::Expression(Expression::Infix(expression))))
     }
 
-    fn parse_function_literal(&mut self) -> Result<Box<Node>, ParseError> {
+    fn parse_function_literal(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
         let mut literal = FunctionLiteral {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             parameters: vec![],
             body: None,
@@ -410,8 +439,8 @@ impl Parser {
         ))))
     }
 
-    fn parse_function_parameters(&mut self) -> Result<Vec<Node>, ParseError> {
-        let mut idents: Vec<Node> = vec![];
+    fn parse_function_parameters(&mut self) -> Result<Vec<Node<'ctx>>, ParseError> {
+        let mut idents: Vec<Node<'ctx>> = vec![];
 
         if self.peek_token_is(&TokenType::RPAREN) {
             self.next_token();
@@ -421,8 +450,9 @@ impl Parser {
         self.next_token();
 
         let ident = Identifier {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
-            value: self.cur_token.literal.clone(),
+            value: self.cur_token.literal,
         };
         idents.push(Node::Expression(Expression::Identifier(ident)));
 
@@ -430,8 +460,9 @@ impl Parser {
             self.next_token();
             self.next_token();
             let ident = Identifier {
+                ctx: self.ctx,
                 token: self.cur_token.clone(),
-                value: self.cur_token.literal.clone(),
+                value: self.cur_token.literal,
             };
             idents.push(Node::Expression(Expression::Identifier(ident)));
         }
@@ -445,8 +476,9 @@ impl Parser {
         Ok(idents)
     }
 
-    fn parse_if_expression(&mut self) -> Result<Box<Node>, ParseError> {
+    fn parse_if_expression(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
         let mut expression = IfExpression {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             condition: None,
             consequence: None,
@@ -496,8 +528,9 @@ impl Parser {
         ))))
     }
 
-    fn parse_block_statement(&mut self) -> Result<Box<Node>, ParseError> {
+    fn parse_block_statement(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
         let mut block = BlockStatement {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             statements: vec![],
         };
@@ -523,9 +556,13 @@ impl Parser {
         Ok(Box::new(Node::Statement(Statement::BlockStatement(block))))
     }
 
-    fn parse_call_expression(&mut self, function: Box<Node>) -> Result<Box<Node>, ParseError> {
+    fn parse_call_expression(
+        &mut self,
+        function: Box<Node<'ctx>>,
+    ) -> Result<Box<Node<'ctx>>, ParseError> {
         let arguments = self.parse_expression_list(TokenType::RPAREN)?;
         let expr = CallExpression {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             function,
             arguments,
@@ -533,8 +570,9 @@ impl Parser {
         Ok(Box::new(Node::Expression(Expression::CallExpression(expr))))
     }
 
-    fn parse_hash_literal(&mut self) -> Result<Box<Node>, ParseError> {
+    fn parse_hash_literal(&mut self) -> Result<Box<Node<'ctx>>, ParseError> {
         let mut hash = HashLiteral {
+            ctx: self.ctx,
             token: self.cur_token.clone(),
             pairs: HashMap::new(),
         };

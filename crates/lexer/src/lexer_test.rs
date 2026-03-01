@@ -133,10 +133,12 @@ fn test_next_token() {
             i, token_type, tok.ty
         );
 
+        let span_ref = tok.literal.with_ref(&ctx);
+
         assert_eq!(
-            &tok.literal, literal,
+            span_ref.reference, *literal,
             "tests[{}] - literal is wrong. expected={}, got={}",
-            i, literal, tok.literal
+            i, literal, span_ref
         );
     }
 }

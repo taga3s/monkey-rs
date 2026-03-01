@@ -1,17 +1,18 @@
 use std::{collections::HashMap, fmt};
 
-use token::token::Token;
+use token::token::{Literal, Token};
+use utils::context::Context;
 
 use std::hash::{Hash, Hasher};
 
 #[derive(PartialEq, Clone, Debug)]
-pub enum Node {
-    Program(Program),
-    Statement(Statement),
-    Expression(Expression),
+pub enum Node<'ctx> {
+    Program(Program<'ctx>),
+    Statement(Statement<'ctx>),
+    Expression(Expression<'ctx>),
 }
 
-impl fmt::Display for Node {
+impl<'ctx> fmt::Display for Node<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Node::Program(p) => write!(f, "{}", p),
@@ -21,23 +22,23 @@ impl fmt::Display for Node {
     }
 }
 
-impl Eq for Node {}
+impl<'ctx> Eq for Node<'ctx> {}
 
-impl Hash for Node {
+impl<'ctx> Hash for Node<'ctx> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.to_string().hash(state); //FIXME: This is not a good hash function
     }
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub enum Statement {
-    Let(LetStatement),
-    Return(ReturnStatement),
-    ExpressionStatement(ExpressionStatement),
-    BlockStatement(BlockStatement),
+pub enum Statement<'ctx> {
+    Let(LetStatement<'ctx>),
+    Return(ReturnStatement<'ctx>),
+    ExpressionStatement(ExpressionStatement<'ctx>),
+    BlockStatement(BlockStatement<'ctx>),
 }
 
-impl fmt::Display for Statement {
+impl<'ctx> fmt::Display for Statement<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Statement::Let(s) => write!(f, "{}", s),
@@ -49,22 +50,22 @@ impl fmt::Display for Statement {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub enum Expression {
-    IntegerLiteral(IntegerLiteral),
-    StringLiteral(StringLiteral),
-    Boolean(Boolean),
-    ArrayLiteral(ArrayLiteral),
-    IndexExpression(IndexExpression),
-    Identifier(Identifier),
-    Prefix(PrefixExpression),
-    Infix(InfixExpression),
-    IfExpression(IfExpression),
-    FunctionLiteral(FunctionLiteral),
-    CallExpression(CallExpression),
-    HashLiteral(HashLiteral),
+pub enum Expression<'ctx> {
+    IntegerLiteral(IntegerLiteral<'ctx>),
+    StringLiteral(StringLiteral<'ctx>),
+    Boolean(Boolean<'ctx>),
+    ArrayLiteral(ArrayLiteral<'ctx>),
+    IndexExpression(IndexExpression<'ctx>),
+    Identifier(Identifier<'ctx>),
+    Prefix(PrefixExpression<'ctx>),
+    Infix(InfixExpression<'ctx>),
+    IfExpression(IfExpression<'ctx>),
+    FunctionLiteral(FunctionLiteral<'ctx>),
+    CallExpression(CallExpression<'ctx>),
+    HashLiteral(HashLiteral<'ctx>),
 }
 
-impl fmt::Display for Expression {
+impl<'ctx> fmt::Display for Expression<'ctx> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Expression::IntegerLiteral(e) => write!(f, "{}", e),
@@ -84,7 +85,7 @@ impl fmt::Display for Expression {
 }
 
 pub trait TNode {
-    fn token_literal(&self) -> String;
+    fn token_literal(&self) -> Literal;
 }
 
 pub trait TStatement
@@ -102,21 +103,22 @@ where
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct Program {
-    pub statements: Vec<Node>,
+pub struct Program<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
+    pub statements: Vec<Node<'ctx>>,
 }
 
-impl TNode for Program {
-    fn token_literal(&self) -> String {
+impl<'ctx> TNode for Program<'ctx> {
+    fn token_literal(&self) -> Literal {
         if !self.statements.is_empty() {
-            self.statements[0].to_string()
+            Literal::new(0, 0) // Program doesn't have a token
         } else {
-            "".to_string()
+            Literal::new(0, 0)
         }
     }
 }
 
-impl fmt::Display for Program {
+impl<'ctx> fmt::Display for Program<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let out = self
             .statements
@@ -129,49 +131,51 @@ impl fmt::Display for Program {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct Identifier {
+pub struct Identifier<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub value: String,
+    pub value: Literal,
 }
 
-impl TExpression for Identifier {
+impl<'ctx> TExpression for Identifier<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for Identifier {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for Identifier<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for Identifier {
+impl<'ctx> fmt::Display for Identifier<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.value.with_ref(self.ctx))
     }
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct LetStatement {
+pub struct LetStatement<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub name: Option<Identifier>,
-    pub value: Option<Box<Node>>,
+    pub name: Option<Identifier<'ctx>>,
+    pub value: Option<Box<Node<'ctx>>>,
 }
 
-impl TStatement for LetStatement {
+impl<'ctx> TStatement for LetStatement<'ctx> {
     fn statement_node(&self) {}
 }
 
-impl TNode for LetStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for LetStatement<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for LetStatement {
+impl<'ctx> fmt::Display for LetStatement<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let out = format!(
             "{} {} = {};",
-            self.token_literal(),
+            self.token_literal().with_ref(self.ctx),
             self.name.as_ref().map_or("".to_string(), |n| n.to_string()),
             self.value
                 .as_ref()
@@ -182,26 +186,27 @@ impl fmt::Display for LetStatement {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct ReturnStatement {
+pub struct ReturnStatement<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub return_value: Option<Box<Node>>,
+    pub return_value: Option<Box<Node<'ctx>>>,
 }
 
-impl TStatement for ReturnStatement {
+impl<'ctx> TStatement for ReturnStatement<'ctx> {
     fn statement_node(&self) {}
 }
 
-impl TNode for ReturnStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for ReturnStatement<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for ReturnStatement {
+impl<'ctx> fmt::Display for ReturnStatement<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let out = format!(
             "{} {};",
-            self.token_literal(),
+            self.token_literal().with_ref(self.ctx),
             self.return_value
                 .as_ref()
                 .map_or("".to_string(), |v| v.to_string())
@@ -211,22 +216,23 @@ impl fmt::Display for ReturnStatement {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct ExpressionStatement {
+pub struct ExpressionStatement<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub expression: Option<Box<Node>>,
+    pub expression: Option<Box<Node<'ctx>>>,
 }
 
-impl TStatement for ExpressionStatement {
+impl<'ctx> TStatement for ExpressionStatement<'ctx> {
     fn statement_node(&self) {}
 }
 
-impl TNode for ExpressionStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for ExpressionStatement<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for ExpressionStatement {
+impl<'ctx> fmt::Display for ExpressionStatement<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
@@ -239,71 +245,74 @@ impl fmt::Display for ExpressionStatement {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct IntegerLiteral {
+pub struct IntegerLiteral<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
     pub value: i64,
 }
 
-impl TExpression for IntegerLiteral {
+impl<'ctx> TExpression for IntegerLiteral<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for IntegerLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for IntegerLiteral<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for IntegerLiteral {
+impl<'ctx> fmt::Display for IntegerLiteral<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
     }
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct StringLiteral {
+pub struct StringLiteral<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub value: String,
+    pub value: Literal,
 }
 
-impl TExpression for StringLiteral {
+impl<'ctx> TExpression for StringLiteral<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for StringLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for StringLiteral<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for StringLiteral {
+impl<'ctx> fmt::Display for StringLiteral<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self.value.with_ref(self.ctx))
     }
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct PrefixExpression {
+pub struct PrefixExpression<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub operator: String,
-    pub right: Option<Box<Node>>,
+    pub operator: Literal,
+    pub right: Option<Box<Node<'ctx>>>,
 }
 
-impl TExpression for PrefixExpression {
+impl<'ctx> TExpression for PrefixExpression<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for PrefixExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for PrefixExpression<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for PrefixExpression {
+impl<'ctx> fmt::Display for PrefixExpression<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let out = format!(
             "({}{})",
-            self.operator,
+            self.operator.with_ref(self.ctx),
             self.right
                 .as_ref()
                 .map_or("".to_string(), |r| r.to_string())
@@ -313,29 +322,30 @@ impl fmt::Display for PrefixExpression {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct InfixExpression {
+pub struct InfixExpression<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub left: Option<Box<Node>>,
-    pub operator: String,
-    pub right: Option<Box<Node>>,
+    pub left: Option<Box<Node<'ctx>>>,
+    pub operator: Literal,
+    pub right: Option<Box<Node<'ctx>>>,
 }
 
-impl TExpression for InfixExpression {
+impl<'ctx> TExpression for InfixExpression<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for InfixExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for InfixExpression<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for InfixExpression {
+impl<'ctx> fmt::Display for InfixExpression<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let out = format!(
             "({} {} {})",
             self.left.as_ref().map_or("".to_string(), |l| l.to_string()),
-            self.operator,
+            self.operator.with_ref(self.ctx),
             self.right
                 .as_ref()
                 .map_or("".to_string(), |r| r.to_string())
@@ -345,44 +355,46 @@ impl fmt::Display for InfixExpression {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct Boolean {
+pub struct Boolean<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
     pub value: bool,
 }
 
-impl TExpression for Boolean {
+impl<'ctx> TExpression for Boolean<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for Boolean {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for Boolean<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for Boolean {
+impl<'ctx> fmt::Display for Boolean<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.value)
     }
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct ArrayLiteral {
+pub struct ArrayLiteral<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub elements: Vec<Box<Node>>,
+    pub elements: Vec<Box<Node<'ctx>>>,
 }
 
-impl TExpression for ArrayLiteral {
+impl<'ctx> TExpression for ArrayLiteral<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for ArrayLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for ArrayLiteral<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for ArrayLiteral {
+impl<'ctx> fmt::Display for ArrayLiteral<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let out = self
             .elements
@@ -395,23 +407,24 @@ impl fmt::Display for ArrayLiteral {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct IndexExpression {
+pub struct IndexExpression<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub left: Option<Box<Node>>,
-    pub index: Option<Box<Node>>,
+    pub left: Option<Box<Node<'ctx>>>,
+    pub index: Option<Box<Node<'ctx>>>,
 }
 
-impl TExpression for IndexExpression {
+impl<'ctx> TExpression for IndexExpression<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for IndexExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for IndexExpression<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for IndexExpression {
+impl<'ctx> fmt::Display for IndexExpression<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let out = format!(
             "({}[{}])",
@@ -425,24 +438,25 @@ impl fmt::Display for IndexExpression {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct IfExpression {
+pub struct IfExpression<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub condition: Option<Box<Node>>,
-    pub consequence: Option<Box<Node>>,
-    pub alternative: Option<Box<Node>>,
+    pub condition: Option<Box<Node<'ctx>>>,
+    pub consequence: Option<Box<Node<'ctx>>>,
+    pub alternative: Option<Box<Node<'ctx>>>,
 }
 
-impl TExpression for IfExpression {
+impl<'ctx> TExpression for IfExpression<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for IfExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for IfExpression<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for IfExpression {
+impl<'ctx> fmt::Display for IfExpression<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let out = format!(
             "if{}{}{}",
@@ -461,22 +475,23 @@ impl fmt::Display for IfExpression {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct BlockStatement {
+pub struct BlockStatement<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub statements: Vec<Node>,
+    pub statements: Vec<Node<'ctx>>,
 }
 
-impl TStatement for BlockStatement {
+impl<'ctx> TStatement for BlockStatement<'ctx> {
     fn statement_node(&self) {}
 }
 
-impl TNode for BlockStatement {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for BlockStatement<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for BlockStatement {
+impl<'ctx> fmt::Display for BlockStatement<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let out = self
             .statements
@@ -489,23 +504,24 @@ impl fmt::Display for BlockStatement {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct FunctionLiteral {
+pub struct FunctionLiteral<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub parameters: Vec<Node>,
-    pub body: Option<Box<Node>>,
+    pub parameters: Vec<Node<'ctx>>,
+    pub body: Option<Box<Node<'ctx>>>,
 }
 
-impl TExpression for FunctionLiteral {
+impl<'ctx> TExpression for FunctionLiteral<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for FunctionLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for FunctionLiteral<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for FunctionLiteral {
+impl<'ctx> fmt::Display for FunctionLiteral<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let params = self
             .parameters
@@ -514,29 +530,35 @@ impl fmt::Display for FunctionLiteral {
             .collect::<Vec<String>>()
             .join(", ");
         let body = self.body.as_ref().map_or("".to_string(), |b| b.to_string());
-        let out = format!("{}({}){{{}}}", self.token_literal(), params, body);
+        let out = format!(
+            "{}({}){{{}}}",
+            self.token_literal().with_ref(self.ctx),
+            params,
+            body
+        );
         write!(f, "{}", out)
     }
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct CallExpression {
+pub struct CallExpression<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub function: Box<Node>,
-    pub arguments: Vec<Box<Node>>,
+    pub function: Box<Node<'ctx>>,
+    pub arguments: Vec<Box<Node<'ctx>>>,
 }
 
-impl TExpression for CallExpression {
+impl<'ctx> TExpression for CallExpression<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for CallExpression {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for CallExpression<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for CallExpression {
+impl<'ctx> fmt::Display for CallExpression<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let func = &self.function.to_string();
         let args = self
@@ -551,22 +573,23 @@ impl fmt::Display for CallExpression {
 }
 
 #[derive(PartialEq, Clone, Debug)]
-pub struct HashLiteral {
+pub struct HashLiteral<'ctx> {
+    pub ctx: &'ctx Context<'ctx>,
     pub token: Token,
-    pub pairs: HashMap<Box<Node>, Box<Node>>,
+    pub pairs: HashMap<Box<Node<'ctx>>, Box<Node<'ctx>>>,
 }
 
-impl TExpression for HashLiteral {
+impl<'ctx> TExpression for HashLiteral<'ctx> {
     fn expression_node(&self) {}
 }
 
-impl TNode for HashLiteral {
-    fn token_literal(&self) -> String {
-        self.token.literal.to_string()
+impl<'ctx> TNode for HashLiteral<'ctx> {
+    fn token_literal(&self) -> Literal {
+        self.token.literal
     }
 }
 
-impl fmt::Display for HashLiteral {
+impl<'ctx> fmt::Display for HashLiteral<'ctx> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let pairs = self
             .pairs

@@ -1,18 +1,20 @@
-use ::token::token::{Token, TokenType, lookup_ident};
+use token::token::{Literal, Token, TokenType, lookup_ident};
 use utils::context::Context;
 
-pub struct Lexer {
+pub struct Lexer<'ctx> {
+    ctx: &'ctx Context<'ctx>,
     input_chars: Vec<char>,
-    position: usize,
+    cur_position: usize,
     read_position: usize,
     ch: Option<char>,
 }
 
-impl Lexer {
-    pub fn new(ctx: &Context) -> Lexer {
+impl<'ctx> Lexer<'ctx> {
+    pub fn new(ctx: &'ctx Context) -> Lexer<'ctx> {
         let mut lexer = Lexer {
+            ctx,
             input_chars: ctx.get_source().chars().collect(),
-            position: 0,
+            cur_position: 0,
             read_position: 0,
             ch: None,
         };
@@ -26,65 +28,85 @@ impl Lexer {
         let tok = if let Some(current) = self.ch {
             match current {
                 '=' => {
+                    let start = self.cur_position;
                     if self.peek_char().is_some_and(|c| c == '=') {
                         self.read_char();
-                        if let Some(next) = self.ch {
-                            self.new_token(TokenType::EQ, format!("{}{}", current, next))
+                        if let Some(_next) = self.ch {
+                            self.new_token(TokenType::EQ, start, self.cur_position + 1)
                         } else {
-                            self.new_token(TokenType::ILLEGAL, current)
+                            self.new_token(TokenType::ILLEGAL, start, self.cur_position)
                         }
                     } else {
-                        self.new_token(TokenType::ASSIGN, current)
+                        self.new_token(TokenType::ASSIGN, start, self.cur_position + 1)
                     }
                 }
-                ';' => self.new_token(TokenType::SEMICOLON, current),
-                ':' => self.new_token(TokenType::COLON, current),
-                '(' => self.new_token(TokenType::LPAREN, current),
-                ')' => self.new_token(TokenType::RPAREN, current),
-                '[' => self.new_token(TokenType::LBRACKET, current),
-                ']' => self.new_token(TokenType::RBRACKET, current),
-                ',' => self.new_token(TokenType::COMMA, current),
-                '+' => self.new_token(TokenType::PLUS, current),
-                '-' => self.new_token(TokenType::MINUS, current),
+                ';' => self.new_token(
+                    TokenType::SEMICOLON,
+                    self.cur_position,
+                    self.cur_position + 1,
+                ),
+                ':' => self.new_token(TokenType::COLON, self.cur_position, self.cur_position + 1),
+                '(' => self.new_token(TokenType::LPAREN, self.cur_position, self.cur_position + 1),
+                ')' => self.new_token(TokenType::RPAREN, self.cur_position, self.cur_position + 1),
+                '[' => self.new_token(
+                    TokenType::LBRACKET,
+                    self.cur_position,
+                    self.cur_position + 1,
+                ),
+                ']' => self.new_token(
+                    TokenType::RBRACKET,
+                    self.cur_position,
+                    self.cur_position + 1,
+                ),
+                ',' => self.new_token(TokenType::COMMA, self.cur_position, self.cur_position + 1),
+                '+' => self.new_token(TokenType::PLUS, self.cur_position, self.cur_position + 1),
+                '-' => self.new_token(TokenType::MINUS, self.cur_position, self.cur_position + 1),
                 '!' => {
+                    let start = self.cur_position;
                     if self.peek_char().is_some_and(|c| c == '=') {
                         self.read_char();
-                        if let Some(next) = self.ch {
-                            self.new_token(TokenType::NOTEQ, format!("{}{}", current, next))
+                        if let Some(_next) = self.ch {
+                            self.new_token(TokenType::NOTEQ, start, self.cur_position + 1)
                         } else {
-                            self.new_token(TokenType::ILLEGAL, current)
+                            self.new_token(TokenType::ILLEGAL, start, self.cur_position + 1)
                         }
                     } else {
-                        self.new_token(TokenType::BANG, current)
+                        self.new_token(TokenType::BANG, start, self.cur_position + 1)
                     }
                 }
-                '*' => self.new_token(TokenType::ASTERISK, current),
-                '<' => self.new_token(TokenType::LT, current),
-                '>' => self.new_token(TokenType::GT, current),
-                '/' => self.new_token(TokenType::SLASH, current),
-                '{' => self.new_token(TokenType::LBRACE, current),
-                '}' => self.new_token(TokenType::RBRACE, current),
+                '*' => self.new_token(
+                    TokenType::ASTERISK,
+                    self.cur_position,
+                    self.cur_position + 1,
+                ),
+                '<' => self.new_token(TokenType::LT, self.cur_position, self.cur_position + 1),
+                '>' => self.new_token(TokenType::GT, self.cur_position, self.cur_position + 1),
+                '/' => self.new_token(TokenType::SLASH, self.cur_position, self.cur_position + 1),
+                '{' => self.new_token(TokenType::LBRACE, self.cur_position, self.cur_position + 1),
+                '}' => self.new_token(TokenType::RBRACE, self.cur_position, self.cur_position + 1),
                 '"' => {
-                    let literal = self.read_string();
-                    self.new_token(TokenType::STRING, literal)
+                    let (start, end) = self.read_string();
+                    self.new_token(TokenType::STRING, start, end)
                 }
                 _ => {
                     if self.is_letter(current) {
-                        let literal = self.read_identifier();
-                        let token_type = lookup_ident(&literal);
+                        let (start, end) = self.read_identifier();
+                        let literal = Literal::new(start, end);
+                        let literal_ref = literal.with_ref(self.ctx);
+                        let token_type = lookup_ident(literal_ref.reference);
                         // Should early return because we have already read_char() in read_identifier()
-                        return self.new_token(token_type, literal);
+                        return self.new_token(token_type, start, end);
                     } else if self.is_digit(current) {
-                        let literal = self.read_number();
+                        let (start, end) = self.read_number();
                         // Should early return because we have already read_char() in read_number()
-                        return self.new_token(TokenType::INT, literal);
+                        return self.new_token(TokenType::INT, start, end);
                     } else {
-                        self.new_token(TokenType::ILLEGAL, current)
+                        self.new_token(TokenType::ILLEGAL, 0, 0)
                     }
                 }
             }
         } else {
-            self.new_token(TokenType::EOF, "")
+            self.new_token(TokenType::EOF, 0, 0)
         };
 
         self.read_char();
@@ -97,7 +119,7 @@ impl Lexer {
         } else {
             self.ch = Some(self.input_chars[self.read_position]);
         }
-        self.position = self.read_position;
+        self.cur_position = self.read_position;
         self.read_position += 1;
     }
 
@@ -115,43 +137,43 @@ impl Lexer {
         }
     }
 
-    fn read_identifier(&mut self) -> String {
-        let position = self.position;
+    fn read_identifier(&mut self) -> (usize, usize) {
+        let position = self.cur_position;
         while let Some(c) = self.ch {
             if !self.is_letter(c) {
                 break;
             }
             self.read_char();
         }
-        self.input_chars[position..self.position].iter().collect()
+        (position, self.cur_position)
     }
 
-    fn read_number(&mut self) -> String {
-        let position = self.position;
+    fn read_number(&mut self) -> (usize, usize) {
+        let position = self.cur_position;
         while let Some(c) = self.ch {
             if !self.is_digit(c) {
                 break;
             }
             self.read_char();
         }
-        self.input_chars[position..self.position].iter().collect()
+        (position, self.cur_position)
     }
 
-    fn read_string(&mut self) -> String {
-        let position = self.position + 1;
+    fn read_string(&mut self) -> (usize, usize) {
+        let position = self.cur_position + 1;
         loop {
             self.read_char();
             if self.ch.is_some_and(|c| c == '"') || self.ch.is_none() {
                 break;
             }
         }
-        self.input_chars[position..self.position].iter().collect()
+        (position, self.cur_position)
     }
 
-    fn new_token<T: Into<String>>(&self, token_type: TokenType, ch: T) -> Token {
+    fn new_token(&self, token_type: TokenType, start: usize, end: usize) -> Token {
         Token {
             ty: token_type,
-            literal: ch.into(),
+            literal: Literal::new(start, end),
         }
     }
 

@@ -1,23 +1,25 @@
 use std::fmt;
 
+use utils::context::Context;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
     pub ty: TokenType,
-    pub literal: String,
+    pub literal: Literal,
 }
 
 impl Token {
-    pub fn new() -> Self {
+    pub fn new(start: usize, end: usize) -> Self {
         Token {
             ty: TokenType::ILLEGAL,
-            literal: String::new(),
+            literal: Literal::new(start, end),
         }
     }
 }
 
 impl Default for Token {
     fn default() -> Self {
-        Self::new()
+        Self::new(0, 0)
     }
 }
 
@@ -113,4 +115,34 @@ pub fn lookup_ident(ident: &str) -> TokenType {
         return *token_type;
     }
     TokenType::IDENT
+}
+
+#[derive(Eq, PartialEq, Debug, Clone, Copy, Hash)]
+pub struct Literal {
+    pub start: usize,
+    pub end: usize,
+}
+
+impl Literal {
+    pub fn new(start: usize, end: usize) -> Self {
+        Self { start, end }
+    }
+
+    pub fn with_ref<'ctx>(self, ctx: &'ctx Context) -> LiteralWithRef<'ctx> {
+        LiteralWithRef {
+            literal: self,
+            reference: &ctx.get_source()[self.start..self.end],
+        }
+    }
+}
+
+pub struct LiteralWithRef<'ctx> {
+    pub literal: Literal,
+    pub reference: &'ctx str,
+}
+
+impl<'a> fmt::Display for LiteralWithRef<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.reference)
+    }
 }

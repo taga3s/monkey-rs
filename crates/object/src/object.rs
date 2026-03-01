@@ -40,19 +40,19 @@ impl fmt::Display for ObjectType {
 }
 
 #[derive(Clone)]
-pub enum ObjectTypes {
+pub enum ObjectTypes<'ctx> {
     Integer(Integer),
     StringLiteral(StringLiteral),
     Boolean(Boolean),
-    Array(Array),
+    Array(Array<'ctx>),
     Null(Null),
-    ReturnValue(ReturnValue),
-    Function(Function),
-    Builtin(Builtin),
-    Hash(Hash),
+    ReturnValue(ReturnValue<'ctx>),
+    Function(Function<'ctx>),
+    Builtin(Builtin<'ctx>),
+    Hash(Hash<'ctx>),
 }
 
-impl ObjectTypes {
+impl<'ctx> ObjectTypes<'ctx> {
     pub fn ty(&self) -> ObjectType {
         match self {
             ObjectTypes::Integer(integer) => integer.ty(),
@@ -207,11 +207,11 @@ impl Boolean {
 }
 
 #[derive(Clone)]
-pub struct Array {
-    pub elements: Vec<ObjectTypes>,
+pub struct Array<'ctx> {
+    pub elements: Vec<ObjectTypes<'ctx>>,
 }
 
-impl Object for Array {
+impl<'ctx> Object for Array<'ctx> {
     fn ty(&self) -> ObjectType {
         ObjectType::ArrayObj
     }
@@ -221,7 +221,11 @@ impl Object for Array {
     }
 
     fn inspect(&self) -> String {
-        let elements: Vec<String> = self.elements.iter().map(|e| e.inspect()).collect();
+        let elements: Vec<String> = self
+            .elements
+            .iter()
+            .map(|e: &ObjectTypes<'ctx>| e.inspect())
+            .collect();
         format!("[{}]", elements.join(", "))
     }
 }
@@ -244,11 +248,11 @@ impl Object for Null {
 }
 
 #[derive(Clone)]
-pub struct ReturnValue {
-    pub value: Box<ObjectTypes>,
+pub struct ReturnValue<'ctx> {
+    pub value: Box<ObjectTypes<'ctx>>,
 }
 
-impl Object for ReturnValue {
+impl<'ctx> Object for ReturnValue<'ctx> {
     fn ty(&self) -> ObjectType {
         ObjectType::ReturnValueObj
     }
@@ -263,13 +267,13 @@ impl Object for ReturnValue {
 }
 
 #[derive(Clone)]
-pub struct Function {
-    pub parameters: Vec<Identifier>,
-    pub body: BlockStatement,
-    pub env: Rc<RefCell<Environment>>,
+pub struct Function<'ctx> {
+    pub parameters: Vec<Identifier<'ctx>>,
+    pub body: BlockStatement<'ctx>,
+    pub env: Rc<RefCell<Environment<'ctx>>>,
 }
 
-impl Object for Function {
+impl<'ctx> Object for Function<'ctx> {
     fn ty(&self) -> ObjectType {
         ObjectType::FunctionObj
     }
@@ -284,14 +288,15 @@ impl Object for Function {
     }
 }
 
-pub type BuiltinFunction = fn(&[ObjectTypes]) -> Result<ObjectTypes, EvaluateError>;
+pub type BuiltinFunction<'ctx> =
+    fn(&[ObjectTypes<'ctx>]) -> Result<ObjectTypes<'ctx>, EvaluateError>;
 
 #[derive(Clone)]
-pub struct Builtin {
-    pub fn_: BuiltinFunction,
+pub struct Builtin<'ctx> {
+    pub fn_: BuiltinFunction<'ctx>,
 }
 
-impl Object for Builtin {
+impl<'ctx> Object for Builtin<'ctx> {
     fn ty(&self) -> ObjectType {
         ObjectType::BuiltinObj
     }
@@ -306,17 +311,17 @@ impl Object for Builtin {
 }
 
 #[derive(Clone)]
-pub struct HashPair {
-    pub key: ObjectTypes,
-    pub value: ObjectTypes,
+pub struct HashPair<'ctx> {
+    pub key: ObjectTypes<'ctx>,
+    pub value: ObjectTypes<'ctx>,
 }
 
 #[derive(Clone)]
-pub struct Hash {
-    pub pairs: HashMap<HashKey, HashPair>,
+pub struct Hash<'ctx> {
+    pub pairs: HashMap<HashKey, HashPair<'ctx>>,
 }
 
-impl Object for Hash {
+impl<'ctx> Object for Hash<'ctx> {
     fn ty(&self) -> ObjectType {
         ObjectType::HashObj
     }
