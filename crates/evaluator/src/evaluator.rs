@@ -18,6 +18,20 @@ const NULL: ObjectTypes = ObjectTypes::Null(Null {});
 const TRUE: ObjectTypes = ObjectTypes::Boolean(Boolean { value: true });
 const FALSE: ObjectTypes = ObjectTypes::Boolean(Boolean { value: false });
 
+#[derive(Default)]
+pub struct Evaluator;
+
+impl Evaluator {
+    pub fn new() -> Self {
+        Evaluator {}
+    }
+
+    pub fn eval(self, node: &Node) -> Result<ObjectTypes, EvaluateError> {
+        let env = Environment::new();
+        eval(node, env)
+    }
+}
+
 pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, EvaluateError> {
     let result = match node {
         Node::Program(program) => eval_program(program, env)?,
@@ -42,7 +56,7 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
                     ie.index.as_ref().ok_or(new_evaluate_error(
                         "[internal:evaluator] missing index in index expression",
                     ))?,
-                    env.clone(),
+                    env,
                 )?;
                 return eval_index_expression(&left, &index);
             }
@@ -58,7 +72,7 @@ pub fn eval(node: &Node, env: Rc<RefCell<Environment>>) -> Result<ObjectTypes, E
                     infix.right.as_ref().ok_or(new_evaluate_error(
                         "[internal:evaluator] missing right operand in infix expression",
                     ))?,
-                    env.clone(),
+                    env,
                 )?;
                 return eval_infix_expression(&infix.operator, &left, &right);
             }
