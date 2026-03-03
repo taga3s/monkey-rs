@@ -51,8 +51,8 @@ impl Parser {
     pub fn new(lexer: Lexer) -> Self {
         let mut parser = Parser {
             lexer,
-            cur_token: Token::new(),
-            peek_token: Token::new(),
+            cur_token: Token::default(),
+            peek_token: Token::default(),
             prefix_parse_fns: HashMap::new(),
             infix_parse_fns: HashMap::new(),
         };

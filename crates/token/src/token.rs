@@ -1,28 +1,14 @@
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Token {
     pub ty: TokenType,
     pub literal: String,
 }
 
-impl Token {
-    pub fn new() -> Self {
-        Token {
-            ty: TokenType::ILLEGAL,
-            literal: String::new(),
-        }
-    }
-}
-
-impl Default for Token {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum TokenType {
+    #[default]
     ILLEGAL,
     EOF,
     IDENT,
